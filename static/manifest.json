@@ -1,0 +1,27 @@
+{
+  "name": "KingsDealer",
+  "short_name": "KingsDealer",
+  "description": "Dealer de vehículos en Santo Domingo, República Dominicana",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0A",
+  "theme_color": "#CC0000",
+  "lang": "es",
+  "scope": "/",
+  "categories": ["shopping", "business"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

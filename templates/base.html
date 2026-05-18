@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>{% block title %}KingsDealer — Santo Domingo{% endblock %}</title>
+
+  <!-- ══ PWA META TAGS ══ -->
+  <meta name="application-name"            content="KingsDealer" />
+  <meta name="description"                 content="Dealer de vehículos en Santo Domingo. Importados y nacionales con financiamiento flexible." />
+  <meta name="theme-color"                 content="#CC0000" />
+  <meta name="mobile-web-app-capable"      content="yes" />
+  <meta name="apple-mobile-web-app-capable"        content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title"  content="KingsDealer" />
+  <link rel="apple-touch-icon"             href="/static/icons/icon-192.png" />
+  <link rel="manifest"                     href="/static/manifest.json" />
+
+  <!-- Safe area (iPhones con notch) -->
+  <style>
+    body {
+      padding-top:    env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left:   env(safe-area-inset-left);
+      padding-right:  env(safe-area-inset-right);
+    }
+  </style>
+
+  <!-- Fuentes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+
+  <!-- ══ REGISTRO SERVICE WORKER ══ -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/static/sw.js", { scope: "/" })
+          .then(reg => console.log("[KingsDealer PWA] SW registrado:", reg.scope))
+          .catch(err => console.warn("[KingsDealer PWA] SW error:", err));
+      });
+    }
+  </script>
+</body>
+</html>

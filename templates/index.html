@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block title %}KingsDealer — Vehículos en Santo Domingo{% endblock %}
+
+{% block body %}
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <span class="logo-icon"></span>
+      <div class="logo-text">
+        <span class="logo-main">Kings</span>
+        <span class="logo-sub">Dealer</span>
+      </div>
+    </a>
+
+    <nav class="header-nav">
+      <a href="#ofertas-section">Ofertas</a>
+      <a href="#catalogo">Catálogo</a>
+      <a href="#nosotros">Nosotros</a>
+      <a href="#contacto">Contacto</a>
+      {% if role == 'admin' %}
+        <span class="admin-badge"> Admin</span>
+        <a href="/logout" class="btn-logout">Cerrar sesión</a>
+      {% endif %}
+    </nav>
+
+    <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <!-- Mobile nav -->
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#ofertas-section" onclick="closeMobile()">Ofertas</a>
+    <a href="#catalogo" onclick="closeMobile()">Catálogo</a>
+    <a href="#nosotros" onclick="closeMobile()">Nosotros</a>
+    <a href="#contacto" onclick="closeMobile()">Contacto</a>
+    {% if role == 'admin' %}
+      <a href="/logout" class="mobile-logout"> Cerrar sesión admin</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Santo Domingo, República Dominicana</p>
+    <h1 class="hero-title">
+      Tu próximo<br/>
+      <span class="hero-accent">vehículo</span><br/>
+      te espera aquí.
+    </h1>
+    <p class="hero-sub">Importados y nacionales · Financiamiento disponible · Entrega inmediata</p>
+    <div class="hero-ctas">
+      <a href="#catalogo" class="btn-primary">Ver catálogo</a>
+      <a href="#contacto" class="btn-ghost">Contáctanos</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num" id="statVehiculos">0</span><span class="stat-label">Vehículos</span></div>
+    <div class="stat"><span class="stat-num">12+</span><span class="stat-label">Años de exp.</span></div>
+    <div class="stat"><span class="stat-num">500+</span><span class="stat-label">Clientes</span></div>
+  </div>
+</section>
+
+<!-- ══════════ SLIDE DE OFERTAS ══════════ -->
+<section class="ofertas-section" id="ofertas-section" style="display:none">
+  <div class="ofertas-header">
+    <div class="ofertas-title-wrap">
+      <span class="ofertas-badge">HOT DEALS</span>
+      <h2 class="ofertas-title">Vehículos en <span class="accent">Oferta</span></h2>
+      <p class="ofertas-sub">Precios especiales por tiempo limitado</p>
+    </div>
+    <div class="slider-controls">
+      <button class="slider-btn" id="sliderPrev" aria-label="Anterior">&#8592;</button>
+      <div class="slider-dots" id="sliderDots"></div>
+      <button class="slider-btn" id="sliderNext" aria-label="Siguiente">&#8594;</button>
+    </div>
+  </div>
+
+  <div class="slider-track-wrap">
+    <div class="slider-track" id="sliderTrack"></div>
+  </div>
+</section>
+
+<!-- ══════════ ADMIN PANEL ══════════ -->
+{% if role == 'admin' %}
+<section class="admin-panel" id="adminPanel">
+  <div class="admin-panel-inner">
+    <div class="admin-panel-header">
+      <h2>Panel de Administración</h2>
+      <button class="btn-toggle-form" id="toggleFormBtn" onclick="toggleForm()">
+        + Agregar vehículo
+      </button>
+    </div>
+
+    <!-- Formulario agregar/editar -->
+    <div class="vehicle-form-wrap" id="vehicleFormWrap" style="display:none">
+      <form id="vehicleForm" enctype="multipart/form-data" onsubmit="submitVehicle(event)">
+        <input type="hidden" id="editId" value="" />
+        <h3 id="formTitle">Nuevo vehículo</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Marca *</label>
+            <input type="text" id="fMarca" name="marca" placeholder="Toyota" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Modelo *</label>
+            <input type="text" id="fModelo" name="modelo" placeholder="RAV4" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Año *</label>
+            <input type="number" id="fAnio" name="anio" placeholder="2024" min="1980" max="2030" required />
+          </div>
+          <div class="form-group">
+            <label>Tipo *</label>
+            <select id="fTipo" name="tipo" required>
+              <option value="">Seleccionar…</option>
+              <option>SUV</option>
+              <option>Sedán</option>
+              <option>Vehículos Compactos</option>
+              <option>Pickup</option>
+              <option>Camionetas Compactas</option>
+              <option>Coupé</option>
+              
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Precio (RD$) *</label>
+            <input type="number" id="fPrecio" name="precio" placeholder="1500000" min="1" required />
+          </div>
+          <div class="form-group">
+            <label>Imagen</label>
+            <input type="file" id="fImagen" name="imagen" accept="image/*" />
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label>Descripción</label>
+          <textarea id="fDescripcion" name="descripcion" placeholder="Características destacadas…" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <!-- Bloque oferta -->
+        <div class="oferta-toggle-wrap">
+          <label class="oferta-switch-label">
+            <span class="oferta-switch-text">
+               Poner en oferta
+              <small>Aparecerá en el slide de ofertas</small>
+            </span>
+            <div class="switch-wrap">
+              <input type="checkbox" id="Oferta" name="oferta_check" value="1" onchange="togglePrecioOferta(this)" />
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+          <input type="hidden" id="fOfertaHidden" name="oferta" value="0" />
+          <div class="precio-oferta-wrap" id="precioOfertaWrap" style="display:none">
+            <div class="form-group" style="margin-top:12px">
+              <label>Precio de oferta (RD$) <small style="text-transform:none;letter-spacing:0;color:#aaa">— opcional, si es diferente al precio regular</small></label>
+              <input type="number" id="fPrecioOferta" name="precio_oferta" placeholder="Ej: 1200000" min="1" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submitBtn">Guardar vehículo</button>
+          <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
+        </div>
+        <p class="form-error" id="formError"></p>
+      </form>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ══════════ CATÁLOGO ══════════ -->
+<section class="catalogo" id="catalogo">
+  <div class="catalogo-inner">
+    <div class="section-header">
+      <h2 class="section-title">Nuestro <span class="accent">Catálogo</span></h2>
+      <p class="section-sub">Vehículos seleccionados para el mercado dominicano</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters" id="filterBar">
+      <button class="filter-btn active" data-tipo="">Todos</button>
+      <button class="filter-btn" data-tipo="SUV">SUV</button>
+      <button class="filter-btn" data-tipo="Sedán">Sedán</button>
+      <button class="filter-btn" data-tipo="Vehículos Compactos">Vehículos Compactos</button>
+      <button class="filter-btn" data-tipo="Pickup">Pickup</button>
+      <button class="filter-btn" data-tipo="Camionetas Compactas">Camionetas compactas</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="vehicles-grid" id="vehiclesGrid">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Cargando vehículos…</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ MARCAS STRIP ══════════ -->
+<section class="marcas-strip">
+  <div class="marcas-inner">
+    <p class="marcas-label">Marcas disponibles</p>
+    <div class="marcas-list">
+      <span>Toyota</span>
+      <span class="sep">·</span>
+      <span>Honda</span>
+      <span class="sep">·</span>
+      <span>Hyundai</span>
+      <span class="sep">·</span>
+      <span>Kia</span>
+      <span class="sep">·</span>
+      <span>Nissan</span>
+      <span class="sep">·</span>
+      <span>Chevrolet</span>
+      <span class="sep">·</span>
+      <span>Ford</span>
+      <span class="sep">·</span>
+      <span>Mitsubishi</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ BENEFICIOS ══════════ -->
+<section class="beneficios">
+  <div class="beneficios-inner">
+    <div class="ben-card">
+      <div class="ben-icon">💳</div>
+      <h3>Financiamiento Flexible</h3>
+      <p>Cuotas a tu medida con los mejores bancos del país. Aprobación rápida.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon">🔍</div>
+      <h3>Inspección Garantizada</h3>
+      <p>Cada vehículo pasa por revisión mecánica y estética antes de salir.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon">📋</div>
+      <h3>Traspaso Incluido</h3>
+      <p>Nos encargamos de toda la documentación para que tú no te preocupes.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon">🛡️</div>
+      <h3>Garantía Post-Venta</h3>
+      <p>Respaldo y soporte después de la compra. Tu satisfacción es nuestra prioridad.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ NOSOTROS ══════════ -->
+<section class="nosotros" id="nosotros">
+  <div class="nosotros-inner">
+    <div class="nosotros-text">
+      <p class="section-eyebrow">Sobre nosotros</p>
+      <h2>El dealer de confianza<br/>en <span class="accent">Santo Domingo</span></h2>
+      <p>KingsDealer nació con la misión de brindar a los dominicanos acceso a vehículos de calidad con un servicio transparente y honesto. Llevamos más de 12 años siendo parte de la comunidad.</p>
+      <ul class="nosotros-features">
+        <li>✅ Financiamiento flexible</li>
+        <li>✅ Vehículos inspeccionados</li>
+        <li>✅ Traspaso incluido</li>
+        <li>✅ Garantía post-venta</li>
+      </ul>
+    </div>
+    <div class="nosotros-visual">
+      <div class="nosotros-card">
+        <div class="nos-icon">🏆</div>
+        <h3>+500 clientes</h3>
+        <p>satisfechos en todo el país</p>
+      </div>
+      <div class="nosotros-card accent-card">
+        <div class="nos-icon">📍</div>
+        <h3>Santo Domingo</h3>
+        <p>Av. Abraham Lincoln, Distrito Nacional</p>
+      </div>
+      <div class="nosotros-card">
+        <div class="nos-icon">🚗</div>
+        <h3>Todas las marcas</h3>
+        <p>Toyota, Honda, Hyundai y más</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ TESTIMONIOS ══════════ -->
+<section class="testimonios">
+  <div class="test-inner">
+    <div class="section-header">
+      <h2 class="section-title">Lo que dicen <span class="accent">nuestros clientes</span></h2>
+    </div>
+    <div class="test-grid">
+      <div class="test-card">
+        <p class="test-stars">★★★★★</p>
+        <p class="test-text">"Excelente servicio, me ayudaron a encontrar el vehículo perfecto dentro de mi presupuesto. 100% recomendado."</p>
+        <p class="test-name">— Carlos M., Santo Domingo</p>
+      </div>
+      <div class="test-card">
+        <p class="test-stars">★★★★★</p>
+        <p class="test-text">"El proceso de financiamiento fue rapidísimo. En 3 días ya tenía mi carro. KingsDealer es diferente."</p>
+        <p class="test-name">— María R., Santiago</p>
+      </div>
+      <div class="test-card">
+        <p class="test-stars">★★★★★</p>
+        <p class="test-text">"Confié en ellos y no me decepcionaron. El traspaso estuvo listo en tiempo récord. Gran equipo."</p>
+        <p class="test-name">— José L., La Romana</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ CONTACTO ══════════ -->
+<section class="contacto" id="contacto">
+  <div class="contacto-inner">
+    <div class="section-header">
+      <h2 class="section-title">¿Listo para tu<br/><span class="accent">nuevo vehículo?</span></h2>
+      <p class="section-sub">Contáctanos y te asesoramos sin compromiso</p>
+    </div>
+    <div class="contacto-grid">
+      <a href="https://wa.me/18091234567?text=Hola,%20estoy%20interesado%20en%20un%20vehículo%20de%20DealerPailón"
+         class="contacto-card whatsapp" target="_blank" rel="noopener">
+        <span class="c-icon">💬</span>
+        <span class="c-label">WhatsApp</span>
+        <span class="c-value">+1 (809) 123-4567</span>
+      </a>
+      <a href="tel:+18091234567" class="contacto-card">
+        <span class="c-icon">📞</span>
+        <span class="c-label">Teléfono</span>
+        <span class="c-value">+1 (809) 123-4567</span>
+      </a>
+      <a href="mailto:ventas@KingsDealer.do" class="contacto-card">
+        <span class="c-icon">✉️</span>
+        <span class="c-label">Email</span>
+        <span class="c-value">ventas@KingsDealer.do</span>
+      </a>
+      <div class="contacto-card no-link">
+        <span class="c-icon">📍</span>
+        <span class="c-label">Dirección</span>
+        <span class="c-value">Av. Abraham Lincoln, D.N.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer class="site-footer" id="siteFooter">
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <span>KingsDealer</span>
+      <p>© 2026 KingsDealer. Santo Domingo, R.D.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#catalogo">Catálogo</a>
+      <a href="#nosotros">Nosotros</a>
+      <a href="#contacto">Contacto</a>
+    </div>
+    <!-- Trigger oculto: 5 clics en el símbolo © -->
+    <div class="footer-copy">
+      <span id="secretTrigger" title="">©</span>
+      <span> KingsDealer</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════ MODAL DETALLE ══════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>const ROLE = "{{ role }}";</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
