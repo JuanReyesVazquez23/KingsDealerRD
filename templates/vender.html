@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}Vende tu vehículo — KingsDealer{% endblock %}
+
+{% block body %}
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-text">
+        <span class="logo-main">Kings</span><span class="logo-sub">Dealer</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="/">Inicio</a>
+      <a href="/#catalogo">Catálogo</a>
+      <a href="/#financiamiento">Financiamiento</a>
+      <a href="/#contacto">Contacto</a>
+    </nav>
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="/">Inicio</a>
+    <a href="/#catalogo">Catálogo</a>
+    <a href="/#financiamiento">Financiamiento</a>
+    <a href="/#contacto">Contacto</a>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="vender-hero">
+  <div class="vender-hero-inner">
+    <p class="section-eyebrow">Publicación gratuita</p>
+    <h1>Vende tu auto con<br/><span class="hero-accent">KingsDealer</span></h1>
+    <p class="vender-hero-sub">Llega a miles de compradores en República Dominicana. Sin intermediarios, sin costos.</p>
+  </div>
+</section>
+
+<!-- Formulario en pasos -->
+<section class="vender-form-section">
+  <div class="vender-form-wrap">
+
+    <!-- Indicador de pasos -->
+    <div class="vender-steps">
+      <div class="vstep vstep-active" id="vstep-ind-1">
+        <span class="vstep-num">1</span>
+        <span class="vstep-label">Contacto</span>
+      </div>
+      <div class="vstep-line"></div>
+      <div class="vstep" id="vstep-ind-2">
+        <span class="vstep-num">2</span>
+        <span class="vstep-label">Vehículo</span>
+      </div>
+      <div class="vstep-line"></div>
+      <div class="vstep" id="vstep-ind-3">
+        <span class="vstep-num">3</span>
+        <span class="vstep-label">Confirmar</span>
+      </div>
+    </div>
+
+    <form id="venderForm" enctype="multipart/form-data" onsubmit="submitAnuncio(event)" novalidate>
+
+      <!-- PASO 1: Datos de contacto -->
+      <div class="vender-step-content" id="vstep1">
+        <h3 class="vstep-title">Tus datos de contacto</h3>
+        <p class="vstep-desc">Los compradores te contactarán directamente por estos medios.</p>
+
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nombre completo *</label>
+            <input type="text" id="vNombre" name="nombre"
+                   placeholder="Ej: Juan Pérez" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Teléfono *</label>
+            <input type="tel" id="vTelefono" name="telefono"
+                   placeholder="+1 (809) 000-0000" required maxlength="20" />
+          </div>
+          <div class="form-group">
+            <label>
+              WhatsApp
+              <span class="optional-tag">opcional</span>
+            </label>
+            <input type="tel" id="vWhatsapp" name="whatsapp"
+                   placeholder="+1 (809) 000-0000" maxlength="20" />
+          </div>
+        </div>
+
+        <div class="vstep-actions">
+          <button type="button" class="btn-primary" onclick="vstepNext(1)">
+            Continuar →
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 2: Datos del vehículo -->
+      <div class="vender-step-content" id="vstep2" style="display:none">
+        <h3 class="vstep-title">Información del vehículo</h3>
+        <p class="vstep-desc">Cuanto más detalle, más rápido encontrarás comprador.</p>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Marca *</label>
+            <input type="text" id="vMarca" name="marca"
+                   placeholder="Toyota" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Modelo *</label>
+            <input type="text" id="vModelo" name="modelo"
+                   placeholder="RAV4" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Año *</label>
+            <input type="number" id="vAnio" name="anio"
+                   placeholder="2020" min="1980" max="2030" required />
+          </div>
+          <div class="form-group">
+            <label>Tipo *</label>
+            <select id="vTipo" name="tipo" required>
+              <option value="">Seleccionar…</option>
+              <option>SUV</option>
+              <option>Sedán</option>
+              <option>Vehículos Compactos</option>
+              <option>Pickup</option>
+              <option>Camionetas Compactas</option>
+              <option>Coupé</option>
+            </select>
+          </div>
+
+          <!-- Precio + Moneda -->
+          <div class="form-group precio-moneda-group">
+            <label>Precio *</label>
+            <div class="precio-moneda-wrap">
+              <input type="number" id="vPrecio" name="precio"
+                     placeholder="1500000" min="1" required />
+              <div class="moneda-selector">
+                <input type="hidden" id="vMoneda" name="moneda" value="DOP" />
+                <button type="button" class="moneda-btn moneda-dop active"
+                        id="vBtnDOP" onclick="setVMoneda('DOP')">
+                  RD$ <span class="moneda-label-sm">DOP</span>
+                </button>
+                <button type="button" class="moneda-btn moneda-usd"
+                        id="vBtnUSD" onclick="setVMoneda('USD')">
+                  US$ <span class="moneda-label-sm">USD</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Condición -->
+          <div class="form-group">
+            <label>Condición *</label>
+            <div class="condicion-toggle">
+              <input type="hidden" id="vCondicion" name="condicion" value="usado" />
+              <button type="button" class="cond-btn" id="cBtnUsado"
+                      onclick="setCondicion('usado')">Usado</button>
+              <button type="button" class="cond-btn cond-inactive" id="cBtnNuevo"
+                      onclick="setCondicion('nuevo')">Nuevo</button>
+            </div>
+          </div>
+
+          <!-- Foto -->
+          <div class="form-group full">
+            <label>
+              Foto principal
+              <span class="optional-tag">opcional</span>
+            </label>
+            <input type="file" id="vImagen" name="imagen" accept="image/*" data-crop data-ratio="1.6" />
+            <p class="fotos-hint">JPG, PNG o WEBP · máx. 8 MB</p>
+          </div>
+        </div>
+
+        <div class="form-group full" style="margin-top:0">
+          <label>
+            Descripción
+            <span class="optional-tag">opcional</span>
+          </label>
+          <textarea id="vDescripcion" name="descripcion"
+                    placeholder="Kilometraje, extras, historial de mantenimiento…"
+                    rows="3" maxlength="500"></textarea>
+        </div>
+
+        <div class="vstep-actions">
+          <button type="button" class="btn-ghost" onclick="vstepBack(2)">← Atrás</button>
+          <button type="button" class="btn-primary" onclick="vstepNext(2)">Continuar →</button>
+        </div>
+      </div>
+
+      <!-- PASO 3: Confirmación -->
+      <div class="vender-step-content" id="vstep3" style="display:none">
+        <h3 class="vstep-title">Confirmar publicación</h3>
+
+        <div class="vender-resumen" id="vResumen"></div>
+
+        <p class="vender-disclaimer">
+          Al publicar aceptas que KingsDealer muestre tus datos de contacto a compradores interesados.
+          Tu anuncio será revisado antes de aparecer en el catálogo.
+        </p>
+
+        <div class="vstep-actions">
+          <button type="button" class="btn-ghost" onclick="vstepBack(3)">← Atrás</button>
+          <button type="submit" class="btn-primary" id="vSubmitBtn">
+            Publicar mi vehículo
+          </button>
+        </div>
+        <p class="form-error" id="vFormError"></p>
+      </div>
+
+      <!-- Éxito -->
+      <div class="vender-step-content vender-success" id="vstepSuccess" style="display:none">
+        <div class="success-icon">✅</div>
+        <h3>¡Publicación enviada!</h3>
+        <p>Tu anuncio fue recibido. Nuestro equipo lo revisará y aparecerá en el catálogo pronto.</p>
+        <a href="/" class="btn-primary" style="margin-top:28px;display:inline-flex">
+          Volver al inicio
+        </a>
+      </div>
+
+    </form>
+  </div>
+</section>
+
+<!-- Footer ligero -->
+<footer class="site-footer" style="padding:24px">
+  <div class="footer-bottom" style="border-top:none;margin-top:0;padding-top:0">
+    <p class="footer-legal">© 2026 KingsDealer. Santo Domingo, R.D.</p>
+    <a href="/" class="footer-nav" style="font-family:var(--font-cond);font-size:.8rem;letter-spacing:1px;color:var(--text-inv-2)">
+      ← Volver al inicio
+    </a>
+  </div>
+</footer>
+
+<script>
+/* ── Selector moneda ── */
+function setVMoneda(v) {
+  document.getElementById('vMoneda').value = v;
+  document.getElementById('vBtnDOP').classList.toggle('active', v === 'DOP');
+  document.getElementById('vBtnUSD').classList.toggle('active', v === 'USD');
+}
+
+/* ── Condición ── */
+function setCondicion(v) {
+  document.getElementById('vCondicion').value = v;
+  document.getElementById('cBtnUsado').classList.toggle('cond-inactive', v !== 'usado');
+  document.getElementById('cBtnNuevo').classList.toggle('cond-inactive', v !== 'nuevo');
+}
+setCondicion('usado'); // inicializar
+
+/* ── Pasos — validación completa ── */
+function vstepNext(step) {
+  const cont = document.getElementById('vstep' + step);
+  const reqs  = cont.querySelectorAll('[required]');
+  let ok = true;
+  let firstErr = null;
+
+  reqs.forEach(el => {
+    el.classList.remove('field-error');
+    const val = el.value.trim();
+    const empty = !val;
+    if (empty) {
+      el.classList.add('field-error');
+      ok = false;
+      if (!firstErr) firstErr = el;
+    }
+  });
+
+  // Validaciones extra de rango
+  if (ok) {
+    const anioEl = cont.querySelector('#vAnio');
+    if (anioEl) {
+      const anio = parseInt(anioEl.value);
+      if (anio < 1980 || anio > 2030) {
+        anioEl.classList.add('field-error');
+        ok = false;
+        firstErr = anioEl;
+      }
+    }
+    const precioEl = cont.querySelector('#vPrecio');
+    if (precioEl && parseFloat(precioEl.value) <= 0) {
+      precioEl.classList.add('field-error');
+      ok = false;
+      firstErr = precioEl;
+    }
+  }
+
+  if (!ok) {
+    firstErr?.focus();
+    firstErr?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Shake visual en el botón
+    const btn = cont.querySelector('.btn-primary');
+    if (btn) {
+      btn.classList.add('btn-shake');
+      setTimeout(() => btn.classList.remove('btn-shake'), 500);
+    }
+    return;
+  }
+
+  cont.style.display = 'none';
+  document.getElementById('vstep' + (step + 1)).style.display = '';
+  updateStepIndicators(step + 1);
+  if (step + 1 === 3) buildResumen();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function vstepBack(step) {
+  document.getElementById('vstep' + step).style.display = 'none';
+  document.getElementById('vstep' + (step - 1)).style.display = '';
+  updateStepIndicators(step - 1);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepIndicators(active) {
+  [1, 2, 3].forEach(i => {
+    const el = document.getElementById('vstep-ind-' + i);
+    if (!el) return;
+    el.classList.toggle('vstep-active', i === active);
+    el.classList.toggle('vstep-done',   i < active);
+  });
+}
+
+/* ── Resumen ── */
+function buildResumen() {
+  const moneda = document.getElementById('vMoneda').value === 'USD' ? 'US$' : 'RD$';
+  const precio = Number(document.getElementById('vPrecio').value).toLocaleString('es-DO');
+  const cond   = document.getElementById('vCondicion').value;
+  const rows = [
+    ['Nombre',    document.getElementById('vNombre').value],
+    ['Teléfono',  document.getElementById('vTelefono').value],
+    ['Vehículo',  `${document.getElementById('vMarca').value} ${document.getElementById('vModelo').value} ${document.getElementById('vAnio').value}`],
+    ['Tipo',      document.getElementById('vTipo').value],
+    ['Condición', cond === 'nuevo' ? 'Nuevo' : 'Usado'],
+    ['Precio',    `${moneda} ${precio}`],
+  ];
+  document.getElementById('vResumen').innerHTML = rows.map(([label, val]) =>
+    `<div class="resumen-row">
+       <span>${label}</span>
+       <strong>${esc(val)}</strong>
+     </div>`
+  ).join('');
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Submit ── */
+async function submitAnuncio(e) {
+  e.preventDefault();
+  const btn   = document.getElementById('vSubmitBtn');
+  const errEl = document.getElementById('vFormError');
+  btn.disabled      = true;
+  btn.textContent   = 'Enviando…';
+  errEl.textContent = '';
+
+  try {
+    const res  = await fetch('/api/anuncios', {
+      method: 'POST',
+      body:   new FormData(document.getElementById('venderForm'))
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Error al enviar.';
+      btn.disabled    = false;
+      btn.textContent = 'Publicar mi vehículo';
+    } else {
+      document.getElementById('vstep3').style.display       = 'none';
+      document.getElementById('vstepSuccess').style.display = '';
+    }
+  } catch {
+    errEl.textContent = 'Error de conexión.';
+    btn.disabled    = false;
+    btn.textContent = 'Publicar mi vehículo';
+  }
+}
+
+/* ── Mobile nav ── */
+document.getElementById('menuToggle').addEventListener('click', () => {
+  document.getElementById('mobileNav').classList.toggle('open');
+  document.getElementById('menuToggle').classList.toggle('open');
+});
+
+/* ── Limpiar error al escribir / cambiar ── */
+document.getElementById('venderForm').addEventListener('input',  clearFieldErr);
+document.getElementById('venderForm').addEventListener('change', clearFieldErr);
+function clearFieldErr(e) {
+  e.target.classList.remove('field-error');
+}
+</script>
+{% endblock %}

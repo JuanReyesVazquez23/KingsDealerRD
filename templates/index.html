@@ -1,0 +1,817 @@
+{% extends "base.html" %}
+{% block title %}KingsDealer — Vehículos en Santo Domingo{% endblock %}
+
+{% block body %}
+<script>const ROLE = "{{ role }}";</script>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-text">
+        <span class="logo-main">Kings</span><span class="logo-sub">Dealer</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="#ofertas-section">Ofertas</a>
+      <a href="#catalogo">Catálogo</a>
+      <a href="/vender" class="nav-vender">Vende tu auto</a>
+      <a href="#financiamiento">Financiamiento</a>
+      <a href="#contacto">Contacto</a>
+      {% if role == 'admin' %}
+        <span class="admin-badge">Admin</span>
+        <a href="/logout" class="btn-logout">Salir</a>
+      {% endif %}
+    </nav>
+    <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#ofertas-section" onclick="closeMobile()">Ofertas</a>
+    <a href="#catalogo"        onclick="closeMobile()">Catálogo</a>
+    <a href="/vender"          onclick="closeMobile()">Vende tu auto</a>
+    <a href="#financiamiento"  onclick="closeMobile()">Financiamiento</a>
+    <a href="#contacto"        onclick="closeMobile()">Contacto</a>
+    {% if role == 'admin' %}
+      <a href="/logout" class="mobile-logout">Cerrar sesión</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Santo Domingo, República Dominicana</p>
+    <h1 class="hero-title">
+      Tu próximo<br/>
+      <span class="hero-accent">vehículo</span><br/>
+      te espera aquí.
+    </h1>
+    <p class="hero-sub">
+      Importados y nacionales &nbsp;·&nbsp; Financiamiento disponible &nbsp;·&nbsp; Entrega inmediata
+    </p>
+    <div class="hero-ctas">
+      <a href="#catalogo" class="btn-primary">Ver catálogo</a>
+      <a href="/vender"   class="btn-ghost">Vende tu auto</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat">
+      <span class="stat-num" id="statVehiculos">0</span>
+      <span class="stat-label">Vehículos</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">12+</span>
+      <span class="stat-label">Años de experiencia</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">500+</span>
+      <span class="stat-label">Clientes atendidos</span>
+    </div>
+  </div>
+</section>
+
+<!-- OFERTAS SLIDER -->
+<section class="ofertas-section" id="ofertas-section" style="display:none">
+  <div class="ofertas-header">
+    <div class="ofertas-title-wrap">
+      <span class="ofertas-badge">OFERTAS</span>
+      <h2 class="ofertas-title">Vehículos en <span class="accent">Oferta</span></h2>
+      <p class="ofertas-sub">Precios especiales por tiempo limitado</p>
+    </div>
+    <div class="slider-controls">
+      <button class="slider-btn" id="sliderPrev" aria-label="Anterior">&#8592;</button>
+      <div class="slider-dots" id="sliderDots"></div>
+      <button class="slider-btn" id="sliderNext" aria-label="Siguiente">&#8594;</button>
+    </div>
+  </div>
+  <div class="slider-track-wrap">
+    <div class="slider-track" id="sliderTrack"></div>
+  </div>
+</section>
+
+<!-- ADMIN PANEL -->
+{% if role == 'admin' %}
+<section class="admin-panel" id="adminPanel">
+  <div class="admin-panel-inner">
+
+    <div class="admin-panel-header">
+      <h2>Panel de Administración</h2>
+      <div class="admin-panel-btns">
+        <button class="btn-admin-secondary" onclick="toggleAnuncios()">Anuncios clientes</button>
+        <button class="btn-toggle-form" id="toggleFormBtn" onclick="toggleForm()">+ Agregar vehículo</button>
+      </div>
+    </div>
+
+    <!-- Anuncios de clientes -->
+    <div class="anuncios-panel" id="anunciosPanel" style="display:none">
+      <div class="anuncios-header">
+        <h3>Anuncios de clientes</h3>
+        <div class="anuncios-filters">
+          <button class="anuncio-filter-btn active" onclick="loadAnuncios('pendiente',this)">Pendientes</button>
+          <button class="anuncio-filter-btn" onclick="loadAnuncios('aprobado',this)">Aprobados</button>
+          <button class="anuncio-filter-btn" onclick="loadAnuncios('rechazado',this)">Rechazados</button>
+          <button class="anuncio-filter-btn" onclick="loadAnuncios('',this)">Todos</button>
+        </div>
+      </div>
+      <div id="anunciosList" class="anuncios-list"></div>
+    </div>
+
+    <!-- Config mapa -->
+    <div class="mapa-config-wrap" id="mapaConfigWrap" style="display:none">
+      <h3>Configurar ubicación del mapa</h3>
+      <div class="mapa-config-form">
+        <div class="form-group">
+          <label>Latitud</label>
+          <input type="text" id="mapaLat" placeholder="18.4737" />
+        </div>
+        <div class="form-group">
+          <label>Longitud</label>
+          <input type="text" id="mapaLon" placeholder="-69.9490" />
+        </div>
+        <div class="form-group full">
+          <label>Etiqueta del pin</label>
+          <input type="text" id="mapaLabel" placeholder="KingsDealer — Av. Abraham Lincoln" maxlength="200" />
+        </div>
+        <p class="fotos-hint" style="grid-column:1/-1">
+          Abre <a href="https://maps.google.com" target="_blank" rel="noopener" style="color:var(--red)">Google Maps</a>,
+          clic derecho → copiar coordenadas.
+        </p>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="guardarMapa()">Guardar ubicación</button>
+          <button class="btn-ghost" style="color:var(--white);border-color:var(--dark-border-2)"
+                  onclick="document.getElementById('mapaConfigWrap').style.display='none'">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario vehículo -->
+    <div class="vehicle-form-wrap" id="vehicleFormWrap" style="display:none">
+      <form id="vehicleForm" enctype="multipart/form-data" onsubmit="submitVehicle(event)">
+        <input type="hidden" id="editId" value="" />
+        <h3 id="formTitle">Nuevo vehículo</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Marca *</label>
+            <input type="text" id="fMarca" name="marca" placeholder="Toyota" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Modelo *</label>
+            <input type="text" id="fModelo" name="modelo" placeholder="RAV4" required maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label>Año *</label>
+            <input type="number" id="fAnio" name="anio" placeholder="2024" min="1980" max="2030" required />
+          </div>
+          <div class="form-group">
+            <label>Tipo *</label>
+            <select id="fTipo" name="tipo" required>
+              <option value="">Seleccionar…</option>
+              <option>SUV</option>
+              <option>Sedán</option>
+              <option>Vehículos Compactos</option>
+              <option>Pickup</option>
+              <option>Camionetas Compactas</option>
+              <option>Coupé</option>
+            </select>
+          </div>
+          <div class="form-group precio-moneda-group">
+            <label>Precio *</label>
+            <div class="precio-moneda-wrap">
+              <input type="number" id="fPrecio" name="precio" placeholder="1500000" min="1" required />
+              <div class="moneda-selector">
+                <input type="hidden" id="fMoneda" name="moneda" value="DOP" />
+                <button type="button" class="moneda-btn moneda-dop active" id="btnDOP" onclick="setMoneda('DOP')">
+                  RD$ <span class="moneda-label-sm">DOP</span>
+                </button>
+                <button type="button" class="moneda-btn moneda-usd" id="btnUSD" onclick="setMoneda('USD')">
+                  US$ <span class="moneda-label-sm">USD</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Foto principal</label>
+            <input type="file" id="fImagen" name="imagen" accept="image/*" data-crop data-ratio="1.6" />
+          </div>
+        </div><!-- /form-grid -->
+
+        <div class="form-group full">
+          <label>Descripción</label>
+          <textarea id="fDescripcion" name="descripcion" placeholder="Características destacadas…" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <div class="form-group full fotos-extra-group">
+          <label>Fotos adicionales
+            <small style="text-transform:none;letter-spacing:0;color:rgba(255,255,255,.4);font-weight:400">
+              — hasta 6 más (7 total)
+            </small>
+          </label>
+          <div class="imagenes-existentes" id="imagenesExistentes" style="display:none"></div>
+          <input type="file" id="fImagenesExtra" name="imagenes_extra" accept="image/*" multiple data-crop data-ratio="1.6" />
+          <p class="fotos-hint">JPG, PNG, WEBP · máx. 8 MB cada una</p>
+        </div>
+
+        <div class="oferta-toggle-wrap">
+          <label class="oferta-switch-label">
+            <span class="oferta-switch-text">
+              Poner en oferta
+              <small>Aparecerá en el slide de ofertas</small>
+            </span>
+            <div class="switch-wrap">
+              <input type="checkbox" id="fOferta" name="oferta_check" value="1" onchange="togglePrecioOferta(this)" />
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+          <input type="hidden" id="fOfertaHidden" name="oferta" value="0" />
+          <div class="precio-oferta-wrap" id="precioOfertaWrap" style="display:none">
+            <div class="form-group" style="margin-top:12px">
+              <label>Precio de oferta
+                <small style="text-transform:none;letter-spacing:0;color:rgba(255,255,255,.4);font-weight:400">
+                  — misma moneda elegida
+                </small>
+              </label>
+              <input type="number" id="fPrecioOferta" name="precio_oferta" placeholder="Ej: 1200000" min="1" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submitBtn">Guardar vehículo</button>
+          <button type="button" class="btn-ghost"
+                  style="color:var(--white);border-color:var(--dark-border-2)"
+                  onclick="resetForm()">Cancelar</button>
+        </div>
+        <p class="form-error" id="formError"></p>
+      </form>
+    </div><!-- /vehicle-form-wrap -->
+
+  </div>
+</section>
+{% endif %}
+
+<!-- CATÁLOGO -->
+<section class="catalogo" id="catalogo">
+  <div class="catalogo-inner">
+
+    <div class="section-header">
+      <p class="section-eyebrow">Nuestros vehículos</p>
+      <h2 class="section-title">Catálogo <span class="accent">Completo</span></h2>
+      <p class="section-sub">Vehículos certificados del dealer y publicaciones de particulares</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters" id="filterBar">
+      <button class="filter-btn active" data-tipo="">Todos</button>
+      <button class="filter-btn" data-tipo="SUV">SUV</button>
+      <button class="filter-btn" data-tipo="Sedán">Sedán</button>
+      <button class="filter-btn" data-tipo="Vehículos Compactos">Vehículos Compactos</button>
+      <button class="filter-btn" data-tipo="Pickup">Pickup</button>
+      <button class="filter-btn" data-tipo="Camionetas Compactas">Camionetas Compactas</button>
+    </div><!-- /filters -->
+
+    <!-- Sort bar -->
+    <div class="sort-bar" id="sortBar">
+      <div class="sort-bar-left">
+        <div class="sort-group">
+          <label class="sort-label" for="sortPrecio">Precio</label>
+          <select class="sort-select" id="sortPrecio" onchange="applySort()">
+            <option value="">Sin ordenar</option>
+            <option value="desc">Mayor a Menor</option>
+            <option value="asc">Menor a Mayor</option>
+          </select>
+        </div>
+        <div class="sort-group">
+          <label class="sort-label" for="sortAnio">Año</label>
+          <select class="sort-select" id="sortAnio" onchange="applySort()">
+            <option value="">Sin ordenar</option>
+            <option value="desc">Más reciente</option>
+            <option value="asc">Más antiguo</option>
+          </select>
+        </div>
+        <div class="sort-group">
+          <label class="sort-label" for="filterMarca">Marca</label>
+          <select class="sort-select" id="filterMarca" onchange="applySort()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+      </div>
+      <button class="sort-clear" id="sortClearBtn" onclick="clearSort()" style="display:none">
+        ✕ Limpiar
+      </button>
+    </div><!-- /sort-bar -->
+
+    <!-- Grid -->
+    <div class="vehicles-grid" id="vehiclesGrid">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Cargando vehículos…</p>
+      </div>
+    </div>
+
+  </div>
+</section><!-- /catalogo -->
+
+<!-- VENDE TU AUTO -->
+<section class="vende-strip">
+  <div class="vende-strip-inner">
+    <div class="vende-strip-text">
+      <h2>¿Quieres vender tu vehículo?</h2>
+      <p>Publica gratis y llega a compradores en toda República Dominicana.</p>
+    </div>
+    <a href="/vender" class="btn-primary vende-strip-btn">Publicar mi auto →</a>
+  </div>
+</section>
+
+<!-- BENEFICIOS -->
+<section class="beneficios">
+  <div class="beneficios-inner">
+    <div class="ben-card">
+      <div class="ben-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+      <h3>Financiamiento Flexible</h3>
+      <p>Cuotas adaptadas a tu presupuesto con los principales bancos del país.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </div>
+      <h3>Inspección Garantizada</h3>
+      <p>Revisión mecánica y estética certificada antes de la entrega.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <h3>Traspaso Incluido</h3>
+      <p>Documentación completa a cargo de nuestro equipo legal.</p>
+    </div>
+    <div class="ben-card">
+      <div class="ben-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <h3>Garantía Post-Venta</h3>
+      <p>Respaldo continuo después de la compra. Tu tranquilidad, nuestra responsabilidad.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINANCIAMIENTO -->
+<section class="financiamiento-section" id="financiamiento">
+  <div class="financiamiento-inner">
+    <div class="section-header">
+      <p class="section-eyebrow">Crédito automotriz</p>
+      <h2 class="section-title">¿Con quiénes <span class="accent">contamos?</span></h2>
+      <p class="section-sub">Trabajamos con los principales bancos del país para ofrecerte las mejores condiciones.</p>
+    </div>
+
+    <div class="bancos-trigger-wrap">
+      <button class="bancos-trigger" id="bancosToggleBtn" onclick="toggleBancosGrid()">
+        <span>Ver nuestros bancos aliados</span>
+        <span class="bancos-trigger-arrow">▾</span>
+      </button>
+    </div>
+
+    <div class="bancos-grid" id="bancosGrid">
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#003F72"/><text x="22" y="17" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="9" fill="#FFFFFF">BANCO</text><text x="22" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="8.5" fill="#FFD700">RESERVAS</text><rect x="8" y="31" width="28" height="2" rx="1" fill="#FFD700"/></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">Banreservas</span>
+            <span class="banco-tag">Banco del Estado Dominicano</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>80% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>72 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>10% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>20%</strong></div>
+          </div>
+          <p class="banco-nota">Banco estatal con las tasas más competitivas. Requiere constancia de ingresos y récord crediticio limpio. Aprobación en 3–5 días hábiles.</p>
+          <a href="https://www.banreservas.com" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#CC0000"/><text x="22" y="20" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="12" fill="#FFFFFF">BHD</text><text x="22" y="32" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="8" fill="rgba(255,255,255,.8)">LEÓN</text></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">BHD León</span>
+            <span class="banco-tag">Banco Múltiple</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>85% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>84 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>11% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>15%</strong></div>
+          </div>
+          <p class="banco-nota">Mayor agilidad en aprobación del mercado. Aplica en línea. Ideal para primera compra con requisitos flexibles.</p>
+          <a href="https://www.bhdleon.com.do" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#004A97"/><text x="22" y="18" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="7.5" fill="#FFFFFF">BANCO</text><text x="22" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="8.5" fill="#FFFFFF">POPULAR</text><circle cx="22" cy="8" r="3" fill="#FFD700"/></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">Banco Popular</span>
+            <span class="banco-tag">El banco más grande de RD</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>80% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>72 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>11.5% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>20%</strong></div>
+          </div>
+          <p class="banco-nota">Red de sucursales en todo el país. Proceso digitalizado con seguimiento en línea del crédito automotriz.</p>
+          <a href="https://www.popularenlinea.com.do" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#EC111A"/><text x="22" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="8" fill="#FFFFFF">SCOTIA</text><text x="22" y="30" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="8" fill="#FFFFFF">BANK</text></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">Scotiabank</span>
+            <span class="banco-tag">Banco Internacional</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>80% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>60 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>12% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>20%</strong></div>
+          </div>
+          <p class="banco-nota">Tasas fijas durante todo el plazo. Ideal para vehículos importados y de alto valor.</p>
+          <a href="https://do.scotiabank.com" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#1A5276"/><text x="22" y="17" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="7" fill="#FFFFFF">SANTA</text><text x="22" y="27" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="7" fill="#FFFFFF">CRUZ</text><line x1="10" y1="32" x2="34" y2="32" stroke="#5DADE2" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">Banco Santa Cruz</span>
+            <span class="banco-tag">Banco de Ahorro y Crédito</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>75% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>60 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>12.5% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>25%</strong></div>
+          </div>
+          <p class="banco-nota">Proceso ágil con menos requisitos. Opción sólida para trabajadores independientes.</p>
+          <a href="https://www.bsc.com.do" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+      <div class="banco-card" onclick="toggleBanco(this)">
+        <div class="banco-header">
+          <div class="banco-logo">
+            <svg viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="10" fill="#00704A"/><text x="22" y="18" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="7" fill="#FFFFFF">BANCO</text><text x="22" y="29" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="7.5" fill="#FFFFFF">CARIBE</text><path d="M10 34 Q22 30 34 34" stroke="rgba(255,255,255,.5)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <div class="banco-info-brief">
+            <span class="banco-name">Banco Caribe</span>
+            <span class="banco-tag">Banco Múltiple</span>
+          </div>
+          <span class="banco-chevron">▾</span>
+        </div>
+        <div class="banco-detalle">
+          <div class="banco-detail-grid">
+            <div class="bd-item"><span class="bd-label">Hasta</span><strong>80% financiado</strong></div>
+            <div class="bd-item"><span class="bd-label">Plazo</span><strong>72 meses</strong></div>
+            <div class="bd-item"><span class="bd-label">Tasa desde</span><strong>11.8% anual</strong></div>
+            <div class="bd-item"><span class="bd-label">Inicial desde</span><strong>20%</strong></div>
+          </div>
+          <p class="banco-nota">Asesoría financiera personalizada incluida. Acepta ingresos combinados de cónyuge.</p>
+          <a href="https://www.bancocaribe.com.do" target="_blank" rel="noopener" class="banco-link">Más información →</a>
+        </div>
+      </div>
+
+    </div><!-- /bancos-grid -->
+    <p class="financiamiento-nota">* Las tasas y condiciones pueden variar. Contáctanos para asesorarte sin compromiso.</p>
+  </div>
+</section>
+
+<!-- NOSOTROS -->
+<section class="nosotros" id="nosotros">
+  <div class="nosotros-inner">
+    <div class="nosotros-text">
+      <p class="section-eyebrow">Sobre nosotros</p>
+      <h2>El dealer de confianza<br/>en <span class="accent">Santo Domingo</span></h2>
+      <p>KingsDealer nació con la misión de brindar a los dominicanos acceso a vehículos de calidad con un servicio transparente y honesto. Llevamos más de 12 años siendo parte de la comunidad.</p>
+      <ul class="nosotros-features">
+        <li>Financiamiento con los mejores bancos del país</li>
+        <li>Vehículos inspeccionados y certificados</li>
+        <li>Traspaso y documentación incluidos</li>
+        <li>Soporte post-venta garantizado</li>
+      </ul>
+    </div>
+    <div class="nosotros-visual">
+      <div class="nosotros-card">
+        <div class="nos-num">+500</div>
+        <p>clientes satisfechos en todo el país</p>
+      </div>
+      <div class="nosotros-card accent-card">
+        <div class="nos-num">12+</div>
+        <p>años en el mercado dominicano</p>
+      </div>
+      <div class="nosotros-card">
+        <div class="nos-num">6</div>
+        <p>bancos aliados para tu financiamiento</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIOS -->
+<section class="testimonios">
+  <div class="test-inner">
+    <div class="section-header">
+      <p class="section-eyebrow">Testimonios</p>
+      <h2 class="section-title">Lo que dicen <span class="accent">nuestros clientes</span></h2>
+    </div>
+    <div class="test-grid">
+      <div class="test-card">
+        <div class="test-stars">★★★★★</div>
+        <p class="test-text">"Excelente servicio, me ayudaron a encontrar el vehículo perfecto dentro de mi presupuesto. 100% recomendado."</p>
+        <p class="test-name">Carlos M. — Santo Domingo</p>
+      </div>
+      <div class="test-card">
+        <div class="test-stars">★★★★★</div>
+        <p class="test-text">"El proceso de financiamiento fue rapidísimo. En 3 días ya tenía mi carro. KingsDealer es diferente."</p>
+        <p class="test-name">María R. — Santiago</p>
+      </div>
+      <div class="test-card">
+        <div class="test-stars">★★★★★</div>
+        <p class="test-text">"Confié en ellos y no me decepcionaron. El traspaso estuvo listo en tiempo récord. Gran equipo."</p>
+        <p class="test-name">José L. — La Romana</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACTO + MAPA -->
+<section class="contacto" id="contacto">
+  <div class="contacto-inner">
+    <div class="section-header">
+      <p class="section-eyebrow">Contáctanos</p>
+      <h2 class="section-title">Estamos aquí<br/><span class="accent">para ayudarte</span></h2>
+      <p class="section-sub">Visítanos o escríbenos — te asesoramos sin compromiso</p>
+    </div>
+    <div class="contacto-mapa-wrap">
+      <div class="contacto-cards">
+        <a href="https://wa.me/18091234567?text=Hola,%20estoy%20interesado%20en%20un%20vehículo%20de%20KingsDealer"
+           class="contacto-card whatsapp" target="_blank" rel="noopener">
+          <span class="c-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 2C6.486 2 2 6.486 2 12c0 1.846.505 3.58 1.383 5.072L2 22l5.104-1.342A9.956 9.956 0 0 0 12 22c5.514 0 10-4.486 10-10S17.514 2 12 2z" opacity=".25"/>
+            </svg>
+          </span>
+          <div>
+            <span class="c-label">WhatsApp</span>
+            <span class="c-value">+1 (809) 123-4567</span>
+          </div>
+        </a>
+        <a href="tel:+18091234567" class="contacto-card">
+          <span class="c-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.47 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </span>
+          <div>
+            <span class="c-label">Teléfono</span>
+            <span class="c-value">+1 (809) 123-4567</span>
+          </div>
+        </a>
+        <a href="mailto:ventas@KingsDealer.do" class="contacto-card">
+          <span class="c-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </span>
+          <div>
+            <span class="c-label">Correo electrónico</span>
+            <span class="c-value">ventas@KingsDealer.do</span>
+          </div>
+        </a>
+        <div class="contacto-card no-link">
+          <span class="c-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="2.5"/>
+            </svg>
+          </span>
+          <div>
+            <span class="c-label">Dirección</span>
+            <span class="c-value">Av. Abraham Lincoln, Distrito Nacional</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mapa-seccion">
+        <div class="mapa-titulo-wrap">
+          <h3 class="mapa-titulo">Nuestra ubicación</h3>
+          {% if role == 'admin' %}
+          <button class="btn-mapa-edit" onclick="abrirConfigMapa()">Editar ubicación</button>
+          {% endif %}
+        </div>
+        <div class="mapa-wrap">
+          <iframe id="mapaIframe" class="mapa-frame" loading="lazy" allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade"
+            src="https://www.openstreetmap.org/export/embed.html?bbox={{ (mapa.lon|float - 0.012)|round(6) }},{{ (mapa.lat|float - 0.008)|round(6) }},{{ (mapa.lon|float + 0.012)|round(6) }},{{ (mapa.lat|float + 0.008)|round(6) }}&layer=mapnik&marker={{ mapa.lat }},{{ mapa.lon }}">
+          </iframe>
+        </div>
+        <a class="mapa-abrir-btn"
+           href="https://www.openstreetmap.org/?mlat={{ mapa.lat }}&mlon={{ mapa.lon }}#map=16/{{ mapa.lat }}/{{ mapa.lon }}"
+           target="_blank" rel="noopener">
+          Abrir en mapa completo →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site-footer" id="siteFooter">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo-text">KingsDealer</span>
+      <p>Santo Domingo, República Dominicana.<br/>Confianza sobre ruedas desde 2012.</p>
+    </div>
+    <div class="footer-col">
+      <p class="footer-col-title">Navegación</p>
+      <nav class="footer-nav">
+        <a href="#catalogo">Catálogo</a>
+        <a href="#ofertas-section">Ofertas</a>
+        <a href="/vender">Vende tu auto</a>
+        <a href="#financiamiento">Financiamiento</a>
+        <a href="#nosotros">Nosotros</a>
+      </nav>
+    </div>
+    <div class="footer-col">
+      <p class="footer-col-title">Contacto</p>
+      <div class="footer-contact">
+        <span>+1 (809) 123-4567</span>
+        <span>ventas@KingsDealer.do</span>
+        <span>Av. Abraham Lincoln, D.N.</span>
+        <span>Lun–Sáb · 8:00 AM – 7:00 PM</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-legal">
+      <span id="secretTrigger">©</span> 2026 KingsDealer. Todos los derechos reservados.
+    </p>
+    <p class="footer-tagline">CONFIANZA SOBRE RUEDAS</p>
+  </div>
+</footer>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+function setMoneda(v) {
+  document.getElementById('fMoneda').value = v;
+  document.getElementById('btnDOP').classList.toggle('active', v === 'DOP');
+  document.getElementById('btnUSD').classList.toggle('active', v === 'USD');
+}
+function toggleBanco(card) {
+  const isOpen = card.classList.contains('banco-open');
+  document.querySelectorAll('.banco-card').forEach(c => c.classList.remove('banco-open'));
+  if (!isOpen) card.classList.add('banco-open');
+}
+function toggleBancosGrid() {
+  const grid = document.getElementById('bancosGrid');
+  const btn  = document.getElementById('bancosToggleBtn');
+  const open = grid.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.querySelector('span:not(.bancos-trigger-arrow)').textContent =
+    open ? 'Ocultar bancos' : 'Ver nuestros bancos aliados';
+  if (open) grid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function abrirConfigMapa() {
+  fetch('/api/config/mapa').then(r => r.json()).then(d => {
+    document.getElementById('mapaLat').value   = d.lat;
+    document.getElementById('mapaLon').value   = d.lon;
+    document.getElementById('mapaLabel').value = d.label;
+    document.getElementById('mapaConfigWrap').style.display = 'block';
+    document.getElementById('mapaConfigWrap').scrollIntoView({ behavior: 'smooth' });
+  });
+}
+async function guardarMapa() {
+  const lat = document.getElementById('mapaLat').value.trim();
+  const lon = document.getElementById('mapaLon').value.trim();
+  const label = document.getElementById('mapaLabel').value.trim();
+  if (!lat || !lon) { alert('Ingresa latitud y longitud.'); return; }
+  const res = await fetch('/api/config/mapa', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat, lon, label })
+  });
+  if (res.ok) {
+    const bbox = `${parseFloat(lon)-.012},${parseFloat(lat)-.008},${parseFloat(lon)+.012},${parseFloat(lat)+.008}`;
+    document.getElementById('mapaIframe').src =
+      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
+    document.getElementById('mapaConfigWrap').style.display = 'none';
+    showToast('✅ Ubicación actualizada', 'success');
+  } else { alert('Error al guardar.'); }
+}
+function toggleAnuncios() {
+  const panel = document.getElementById('anunciosPanel');
+  const vis   = panel.style.display !== 'none';
+  panel.style.display = vis ? 'none' : 'block';
+  if (!vis) loadAnuncios('pendiente', document.querySelector('.anuncio-filter-btn'));
+}
+async function loadAnuncios(estado, btn) {
+  document.querySelectorAll('.anuncio-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const url  = estado ? `/api/anuncios?estado=${estado}` : '/api/anuncios';
+  const res  = await fetch(url);
+  const list = await res.json();
+  const cont = document.getElementById('anunciosList');
+  if (!list.length) { cont.innerHTML = '<p class="anuncio-empty">No hay anuncios en esta categoría.</p>'; return; }
+  cont.innerHTML = list.map(a => {
+    const moneda = a.moneda === 'USD' ? 'US$' : 'RD$';
+    const precio = Number(a.precio).toLocaleString('es-DO');
+    const img = a.imagen ? `<img src="/static/uploads/${a.imagen}" class="anuncio-img" />` : '';
+    return `<div class="anuncio-item">
+      ${img}
+      <div class="anuncio-data">
+        <div class="anuncio-titulo">${a.marca} ${a.modelo} ${a.anio} — <span class="anuncio-cond ${a.condicion}">${a.condicion}</span></div>
+        <div class="anuncio-precio">${moneda} ${precio}</div>
+        <div class="anuncio-contacto"><strong>${a.nombre}</strong> · ${a.telefono}${a.whatsapp ? ' · WA: '+a.whatsapp : ''}</div>
+        ${a.descripcion ? `<p class="anuncio-desc">${a.descripcion}</p>` : ''}
+        <div class="anuncio-estado-badge estado-${a.estado}">${a.estado.toUpperCase()}</div>
+      </div>
+      <div class="anuncio-actions">
+        ${a.estado !== 'aprobado'  ? `<button class="btn-anuncio-accion btn-aprobar"    onclick="cambiarEstadoAnuncio(${a.id},'aprobado')">Aprobar</button>` : ''}
+        ${a.estado !== 'rechazado' ? `<button class="btn-anuncio-accion btn-rechazar"   onclick="cambiarEstadoAnuncio(${a.id},'rechazado')">Rechazar</button>` : ''}
+        <button class="btn-anuncio-accion btn-eliminar-an" onclick="eliminarAnuncio(${a.id})">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function cambiarEstadoAnuncio(id, estado) {
+  await fetch(`/api/anuncios/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({estado}) });
+  const activeBtn = document.querySelector('.anuncio-filter-btn.active');
+  const txt = activeBtn?.textContent?.toLowerCase() || '';
+  const e = txt === 'todos' ? '' : txt === 'pendientes' ? 'pendiente' : txt === 'aprobados' ? 'aprobado' : 'rechazado';
+  loadAnuncios(e, activeBtn);
+  showToast(`✅ Marcado como ${estado}`, 'success');
+}
+async function eliminarAnuncio(id) {
+  if (!confirm('¿Eliminar este anuncio?')) return;
+  await fetch(`/api/anuncios/${id}`, { method: 'DELETE' });
+  loadAnuncios('', document.querySelector('.anuncio-filter-btn:last-child'));
+  showToast('🗑 Anuncio eliminado', 'success');
+}
+</script>
+{% endblock %}

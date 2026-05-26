@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>{% block title %}KingsDealer — Santo Domingo{% endblock %}</title>
+
+  <!-- PWA -->
+  <meta name="application-name"                    content="KingsDealer" />
+  <meta name="description"                         content="Dealer de vehículos en Santo Domingo. Importados y nacionales con financiamiento flexible." />
+  <meta name="theme-color"                         content="#CC0000" />
+  <meta name="mobile-web-app-capable"              content="yes" />
+  <meta name="apple-mobile-web-app-capable"        content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title"          content="KingsDealer" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <link rel="manifest"         href="/static/manifest.json" />
+
+  <style>
+    body {
+      padding-top:    env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left:   env(safe-area-inset-left);
+      padding-right:  env(safe-area-inset-right);
+    }
+  </style>
+
+  <!-- Fuentes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Cropper.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+
+  <!-- ══ MODAL RECORTE DE IMÁGENES ══════════════════════════
+       Reutilizable para todos los inputs de foto del sitio.
+       Se activa automáticamente al seleccionar una imagen.
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="crop-overlay" id="cropOverlay">
+    <div class="crop-box">
+
+      <div class="crop-header">
+        <h3 class="crop-title">Recortar imagen</h3>
+        <div class="crop-ratio-btns" id="cropRatioBtns">
+          <button class="crop-ratio-btn active" data-ratio="1.6" onclick="setCropRatio(1.6,this)">16:10 Card</button>
+          <button class="crop-ratio-btn" data-ratio="1"    onclick="setCropRatio(1,this)">1:1</button>
+          <button class="crop-ratio-btn" data-ratio="0"    onclick="setCropRatio(0,this)">Libre</button>
+        </div>
+      </div>
+
+      <div class="crop-canvas-wrap">
+        <img id="cropImg" src="" alt="Recortar" />
+      </div>
+
+      <p class="crop-hint">
+        Arrastra para mover · Pellizca para hacer zoom · Arrastra las esquinas para ajustar
+      </p>
+
+      <div class="crop-actions">
+        <button class="btn-ghost crop-cancel-btn" onclick="cancelCrop()">Cancelar</button>
+        <button class="btn-primary" onclick="confirmCrop()">Usar esta foto</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Cropper.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+  <script>
+  /* ═══════════════════════════════════════════════
+     IMAGEN CROPPER — lógica global
+     Funciona con cualquier <input type="file">
+     que tenga el atributo [data-crop]
+  ═══════════════════════════════════════════════ */
+  (function() {
+    'use strict';
+
+    let cropper        = null;   // instancia activa de Cropper.js
+    let activeInput    = null;   // el <input type="file"> que disparó el crop
+    let croppedFiles   = {};     // { inputId: [File, ...] } — archivos ya recortados
+    let pendingIndex   = 0;      // índice del archivo en proceso (para múltiples)
+    let pendingFiles   = [];     // lista de archivos a procesar uno a uno
+    let currentRatio   = 1.6;   // ratio activo (16:10 por defecto)
+
+    // ── Inicializar: escuchar todos los inputs con [data-crop] ──
+    function initCropListeners() {
+      document.querySelectorAll('input[type="file"][data-crop]').forEach(bindInput);
+    }
+
+    function bindInput(input) {
+      // Evitar doble-bind
+      if (input._cropBound) return;
+      input._cropBound = true;
+
+      input.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
+        // Ratio: usa el data-ratio del input o el default
+        const ratio = parseFloat(input.dataset.ratio || '1.6') || 1.6;
+        currentRatio = ratio;
+        syncRatioBtns(ratio);
+
+        // Mostrar u ocultar los botones de ratio si es un input libre
+        const ratioBtnsEl = document.getElementById('cropRatioBtns');
+        if (ratioBtnsEl) {
+          ratioBtnsEl.style.display = input.dataset.hideRatio ? 'none' : '';
+        }
+
+        activeInput  = input;
+        croppedFiles[input.id] = croppedFiles[input.id] || [];
+        pendingFiles = files;
+        pendingIndex = 0;
+
+        openCropForFile(files[0]);
+      });
+    }
+
+    function openCropForFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = document.getElementById('cropImg');
+        img.src   = e.target.result;
+
+        const overlay = document.getElementById('cropOverlay');
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        // Pequeño delay para que la imagen esté renderizada
+        setTimeout(() => {
+          if (cropper) { cropper.destroy(); cropper = null; }
+          cropper = new Cropper(img, {
+            aspectRatio:   currentRatio || NaN,
+            viewMode:      1,
+            dragMode:      'move',
+            autoCropArea:  0.88,
+            responsive:    true,
+            restore:       false,
+            guides:        true,
+            center:        true,
+            highlight:     false,
+            cropBoxMovable:   true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+          });
+        }, 80);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    window.setCropRatio = function(ratio, btn) {
+      currentRatio = ratio;
+      if (cropper) cropper.setAspectRatio(ratio || NaN);
+      syncRatioBtns(ratio);
+    };
+
+    function syncRatioBtns(ratio) {
+      document.querySelectorAll('.crop-ratio-btn').forEach(b => {
+        b.classList.toggle('active', parseFloat(b.dataset.ratio) === ratio);
+      });
+    }
+
+    window.confirmCrop = function() {
+      if (!cropper || !activeInput) return;
+
+      // Calidad alta — JPEG al 92%
+      const canvas = cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400 });
+      canvas.toBlob(function(blob) {
+        const originalName = pendingFiles[pendingIndex].name.replace(/\.[^.]+$/, '') + '.jpg';
+        const croppedFile  = new File([blob], originalName, { type: 'image/jpeg' });
+
+        // Acumular archivos recortados para este input
+        if (!croppedFiles[activeInput.id]) croppedFiles[activeInput.id] = [];
+        croppedFiles[activeInput.id].push(croppedFile);
+
+        pendingIndex++;
+
+        if (pendingIndex < pendingFiles.length) {
+          // Más archivos por recortar
+          openCropForFile(pendingFiles[pendingIndex]);
+        } else {
+          // Todos recortados — inyectar en el input
+          injectFiles(activeInput, croppedFiles[activeInput.id]);
+          closeCropOverlay();
+          showCropPreviews(activeInput, croppedFiles[activeInput.id]);
+          // Limpiar para la próxima selección
+          croppedFiles[activeInput.id] = [];
+        }
+      }, 'image/jpeg', 0.92);
+    };
+
+    window.cancelCrop = function() {
+      // Resetear el input para que no quede un archivo sin recortar
+      if (activeInput) activeInput.value = '';
+      closeCropOverlay();
+    };
+
+    function closeCropOverlay() {
+      if (cropper) { cropper.destroy(); cropper = null; }
+      const overlay = document.getElementById('cropOverlay');
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+      activeInput  = null;
+      pendingFiles = [];
+      pendingIndex = 0;
+    }
+
+    // Inyectar archivos recortados en el input usando DataTransfer
+    function injectFiles(input, files) {
+      try {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+      } catch(e) {
+        // Safari fallback: guardar en dataset para usar en FormData
+        input._croppedFiles = files;
+      }
+    }
+
+    // Mostrar previsualizaciones debajo del input
+    function showCropPreviews(input, files) {
+      const previewId = input.id + '_preview';
+      let prevWrap = document.getElementById(previewId);
+      if (!prevWrap) {
+        prevWrap = document.createElement('div');
+        prevWrap.id = previewId;
+        prevWrap.className = 'crop-previews';
+        input.parentNode.insertBefore(prevWrap, input.nextSibling);
+      }
+      prevWrap.innerHTML = '';
+      files.forEach((file, i) => {
+        const url  = URL.createObjectURL(file);
+        const wrap = document.createElement('div');
+        wrap.className = 'crop-preview-item';
+        wrap.innerHTML = `
+          <img src="${url}" alt="Vista previa ${i+1}" />
+          <span class="crop-preview-badge">✓ Recortada</span>
+        `;
+        prevWrap.appendChild(wrap);
+      });
+    }
+
+    // Parchar FormData para incluir _croppedFiles (Safari fallback)
+    const origAppend = FormData.prototype.append;
+    // No parchamos — el DataTransfer funciona en todos los navegadores modernos
+
+    // Inicializar cuando el DOM esté listo y re-init si se añaden inputs dinámicamente
+    document.addEventListener('DOMContentLoaded', initCropListeners);
+
+    // Re-escuchar si se añaden inputs dinámicamente (formulario admin que se muestra/oculta)
+    const observer = new MutationObserver(() => initCropListeners());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+  })();
+  </script>
+
+  <!-- Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/static/sw.js", { scope: "/" })
+          .then(r  => console.log("[KingsDealer PWA] SW:", r.scope))
+          .catch(e => console.warn("[KingsDealer PWA] SW error:", e));
+      });
+    }
+  </script>
+</body>
+</html>
