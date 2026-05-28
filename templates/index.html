@@ -4,14 +4,12 @@
 {% block body %}
 <script>const ROLE = "{{ role }}";</script>
 
+<!-- HEADER -->
 <header class="site-header">
   <div class="header-inner">
     <a href="/" class="logo">
       <div class="logo-text">
         <span class="logo-main">Kings</span><span class="logo-sub">Dealer</span>
-        <link rel="stylesheet" href="style.css">
-  
-
       </div>
     </a>
     <nav class="header-nav">
@@ -41,6 +39,7 @@
   </div>
 </header>
 
+<!-- HERO -->
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="hero-content">
@@ -51,7 +50,7 @@
       te espera aquí.
     </h1>
     <p class="hero-sub">
-      Variedad en importados y nacionales  ·  Financiamiento disponible  ·  Entrega inmediata
+      Variedad en importados y nacionales &nbsp;·&nbsp; Financiamiento disponible &nbsp;·&nbsp; Entrega inmediata
     </p>
     <div class="hero-ctas">
       <a href="#catalogo" class="btn-primary">Ver catálogo</a>
@@ -65,7 +64,7 @@
     </div>
     <div class="stat">
       <span class="stat-num">12+</span>
-      <span class="stat-label">Años en el mercado</span>
+      <span class="stat-label">Años de experiencia</span>
     </div>
     <div class="stat">
       <span class="stat-num">500+</span>
@@ -74,6 +73,7 @@
   </div>
 </section>
 
+<!-- OFERTAS SLIDER -->
 <section class="ofertas-section" id="ofertas-section" style="display:none">
   <div class="ofertas-header">
     <div class="ofertas-title-wrap">
@@ -82,15 +82,17 @@
       <p class="ofertas-sub">Precios especiales por tiempo limitado</p>
     </div>
     <div class="slider-controls">
-      <button class="slider-btn" id="sliderPrev" aria-label="Anterior">←</button>
+      <button class="slider-btn" id="sliderPrev" aria-label="Anterior">&#8592;</button>
       <div class="slider-dots" id="sliderDots"></div>
-      <button class="slider-btn" id="sliderNext" aria-label="Siguiente">→</button>
+      <button class="slider-btn" id="sliderNext" aria-label="Siguiente">&#8594;</button>
     </div>
   </div>
   <div class="slider-track-wrap">
     <div class="slider-track" id="sliderTrack"></div>
   </div>
 </section>
+
+<!-- ADMIN PANEL -->
 {% if role == 'admin' %}
 <section class="admin-panel" id="adminPanel">
   <div class="admin-panel-inner">
@@ -103,6 +105,7 @@
       </div>
     </div>
 
+    <!-- Anuncios de clientes -->
     <div class="anuncios-panel" id="anunciosPanel" style="display:none">
       <div class="anuncios-header">
         <h3>Anuncios de clientes</h3>
@@ -116,6 +119,7 @@
       <div id="anunciosList" class="anuncios-list"></div>
     </div>
 
+    <!-- Config mapa -->
     <div class="mapa-config-wrap" id="mapaConfigWrap" style="display:none">
       <h3>Configurar ubicación del mapa</h3>
       <div class="mapa-config-form">
@@ -143,6 +147,7 @@
       </div>
     </div>
 
+    <!-- Formulario vehículo -->
     <div class="vehicle-form-wrap" id="vehicleFormWrap" style="display:none">
       <form id="vehicleForm" enctype="multipart/form-data" onsubmit="submitVehicle(event)">
         <input type="hidden" id="editId" value="" />
@@ -192,7 +197,7 @@
             <label>Foto principal</label>
             <input type="file" id="fImagen" name="imagen" accept="image/*" data-crop data-ratio="1.6" />
           </div>
-        </div>
+        </div><!-- /form-grid -->
 
         <div class="form-group full">
           <label>Descripción</label>
@@ -242,11 +247,13 @@
         </div>
         <p class="form-error" id="formError"></p>
       </form>
-    </div>
+    </div><!-- /vehicle-form-wrap -->
 
   </div>
 </section>
 {% endif %}
+
+<!-- CATÁLOGO -->
 <section class="catalogo" id="catalogo">
   <div class="catalogo-inner">
 
@@ -256,6 +263,7 @@
       <p class="section-sub">Vehículos certificados del dealer y publicaciones de vendedores particulares</p>
     </div>
 
+    <!-- Filtros -->
     <div class="filters" id="filterBar">
       <button class="filter-btn active" data-tipo="">Todos</button>
       <button class="filter-btn" data-tipo="SUV">SUV</button>
@@ -263,8 +271,9 @@
       <button class="filter-btn" data-tipo="Vehículos Compactos">Vehículos Compactos</button>
       <button class="filter-btn" data-tipo="Pickup">Pickup</button>
       <button class="filter-btn" data-tipo="Camionetas Compactas">Camionetas Compactas</button>
-    </div>
+    </div><!-- /filters -->
 
+    <!-- Sort bar -->
     <div class="sort-bar" id="sortBar">
       <div class="sort-bar-left">
         <div class="sort-group">
@@ -293,22 +302,20 @@
       <button class="sort-clear" id="sortClearBtn" onclick="clearSort()" style="display:none">
         ✕ Limpiar
       </button>
-    </div>
+    </div><!-- /sort-bar -->
 
+    <!-- Grid -->
     <div class="vehicles-grid" id="vehiclesGrid">
       <div class="loading-spinner">
         <div class="spinner"></div>
         <p>Cargando vehículos…</p>
       </div>
     </div>
-    
-    <div id="loadMoreWrap" class="load-more-wrap" style="display:none;">
-      <button id="btnLoadMore" class="btn-load-more">Mostrar más vehículos</button>
-    </div>
 
   </div>
-</section>
+</section><!-- /catalogo -->
 
+<!-- VENDE TU AUTO -->
 <section class="vende-strip">
   <div class="vende-strip-inner">
     <div class="vende-strip-text">
@@ -319,6 +326,7 @@
   </div>
 </section>
 
+<!-- BENEFICIOS -->
 <section class="beneficios">
   <div class="beneficios-inner">
     <div class="ben-card">
@@ -361,6 +369,8 @@
     </div>
   </div>
 </section>
+
+<!-- FINANCIAMIENTO -->
 <section class="financiamiento-section" id="financiamiento">
   <div class="financiamiento-inner">
     <div class="section-header">
@@ -516,11 +526,12 @@
         </div>
       </div>
 
-    </div>
+    </div><!-- /bancos-grid -->
     <p class="financiamiento-nota">* Las tasas y condiciones pueden variar. Contáctanos para asesorarte sin compromiso.</p>
   </div>
 </section>
 
+<!-- NOSOTROS -->
 <section class="nosotros" id="nosotros">
   <div class="nosotros-inner">
     <div class="nosotros-text">
@@ -550,6 +561,8 @@
     </div>
   </div>
 </section>
+
+<!-- TESTIMONIOS -->
 <section class="testimonios">
   <div class="test-inner">
     <div class="section-header">
@@ -576,6 +589,7 @@
   </div>
 </section>
 
+<!-- CONTACTO + MAPA -->
 <section class="contacto" id="contacto">
   <div class="contacto-inner">
     <div class="section-header">
@@ -658,6 +672,7 @@
   </div>
 </section>
 
+<!-- FOOTER -->
 <footer class="site-footer" id="siteFooter">
   <div class="footer-inner">
     <div class="footer-brand">
@@ -692,6 +707,7 @@
   </div>
 </footer>
 
+<!-- Modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
   <div class="modal-box" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeModal()">✕</button>

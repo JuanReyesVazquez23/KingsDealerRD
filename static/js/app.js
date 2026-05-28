@@ -165,13 +165,14 @@ function applySort() {
   filterMarca = document.getElementById('filterMarca')?.value || '';
 
   ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
-    document.getElementById(id)?.classList.toggle('active-filter', !!(id === 'sortPrecio' ? sortPrecio : id === 'sortAnio' ? sortAnio : filterMarca));
+    document.getElementById(id)?.classList.toggle('active-filter',
+      !!(id === 'sortPrecio' ? sortPrecio : id === 'sortAnio' ? sortAnio : filterMarca));
   });
   updateClearBtn();
-  
+
   let list = [...allVehicles];
   if (filterMarca) list = list.filter(v => v.marca === filterMarca);
-  
+
   if (sortPrecio) {
     const F = 60; // factor DOP≈USD referencial solo para ordenamiento
     list.sort((a, b) => {
@@ -182,7 +183,477 @@ function applySort() {
   } else if (sortAnio) {
     list.sort((a, b) => sortAnio === 'desc' ? b.anio - a.anio : a.anio - b.anio);
   }
-  
+
   renderVehicles(list);
 }
-// ... (resto del archivo)
+
+function updateClearBtn() {
+  const btn = document.getElementById('sortClearBtn');
+  if (btn) btn.style.display = (sortPrecio || sortAnio || filterMarca) ? 'flex' : 'none';
+}
+
+function clearSort() {
+  sortPrecio = ''; sortAnio = ''; filterMarca = '';
+  ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('active-filter'); }
+  });
+  updateClearBtn();
+  renderVehicles(allVehicles);
+}
+
+// ══════════════════════════════════════════════════
+// MODAL DETALLE — galería de hasta 7 fotos
+// ══════════════════════════════════════════════════
+
+function openModal(id) {
+  const v = allVehicles.find(x => x.id === id);
+  if (!v) return;
+
+  const moneda     = v.moneda || 'DOP';
+  const extras     = Array.isArray(v.imagenes_extra) ? v.imagenes_extra : [];
+  const todasFotos = [];
+  if (v.imagen) todasFotos.push(v.imagen);
+  extras.forEach(e => { if (e) todasFotos.push(e); });
+
+  let galeriaHtml = '';
+  if (!todasFotos.length) {
+    galeriaHtml = `<div class="modal-img-ph">🚗</div>`;
+  } else if (todasFotos.length === 1) {
+    galeriaHtml = `<img class="modal-img"
+                        src="/static/uploads/${esc(todasFotos[0])}"
+                        alt="${esc(v.marca)} ${esc(v.modelo)}" />`;
+  } else {
+    galeriaHtml = `
+      <div class="modal-gallery">
+        <div class="mg-main-wrap">
+          <img class="mg-main-img" id="mgMain"
+               src="/static/uploads/${esc(todasFotos[0])}"
+               alt="${esc(v.marca)} ${esc(v.modelo)}" />
+          <button class="mg-arrow mg-arrow-l" onclick="mgPrev()" aria-label="Anterior">&#8592;</button>
+          <button class="mg-arrow mg-arrow-r" onclick="mgNext()" aria-label="Siguiente">&#8594;</button>
+          <div class="mg-counter"><span id="mgCurrent">1</span>/${todasFotos.length}</div>
+        </div>
+        <div class="mg-thumbs" id="mgThumbs">
+          ${todasFotos.map((f, i) => `
+            <button class="mg-thumb${i === 0 ? ' active' : ''}" onclick="mgGoTo(${i})" aria-label="Foto ${i+1}">
+              <img src="/static/uploads/${esc(f)}" alt="Foto ${i+1}" loading="lazy" />
+            </button>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  const precioHtml = (v.oferta && v.precio_oferta)
+    ? `<p class="modal-price">
+         <span class="modal-price-original">${fmtMoneda(v.precio, moneda)}</span>
+         ${fmtMoneda(v.precio_oferta, moneda)}
+       </p>`
+    : `<p class="modal-price">${fmtMoneda(v.precio, moneda)}</p>`;
+
+  document.getElementById('modalContent').innerHTML = `
+    ${galeriaHtml}
+    <div class="modal-body">
+      ${v.oferta ? '<span class="modal-oferta-tag">OFERTA</span>' : ''}
+      <div class="modal-tipo-row">
+        <p class="modal-tipo">${esc(v.tipo)}</p>
+        <span class="modal-moneda-badge modal-moneda-${moneda.toLowerCase()}">${moneda}</span>
+      </div>
+      <h2 class="modal-title">${esc(v.marca)} ${esc(v.modelo)}</h2>
+      <p class="modal-year">Año ${v.anio}</p>
+      <p class="modal-desc">${esc(v.descripcion || 'Consulta disponibilidad y financiamiento.')}</p>
+      ${precioHtml}
+      ${v.origen === 'cliente' && v.nombre_vendedor ? `
+        <div class="modal-vendedor">
+          <p class="modal-vendedor-label">Vendedor particular</p>
+          <p class="modal-vendedor-nombre">${esc(v.nombre_vendedor)}</p>
+        </div>
+        <div class="modal-cta">
+          ${v.whatsapp_vendedor
+            ? `<a href="https://wa.me/${v.whatsapp_vendedor.replace(/[^0-9]/g,'')}?text=${encodeURIComponent('Hola ' + v.nombre_vendedor + ', vi tu ' + v.marca + ' ' + v.modelo + ' ' + v.anio + ' en KingsDealer')}" class="btn-primary" target="_blank" rel="noopener">WhatsApp vendedor</a>`
+            : ''}
+          <a href="tel:${v.telefono_vendedor}" class="btn-ghost" style="color:#333;border-color:#ccc;">Llamar: ${esc(v.telefono_vendedor)}</a>
+        </div>` : `
+        <div class="modal-cta">
+          <a href="https://wa.me/18091234567?text=${encodeURIComponent('Hola, me interesa el ' + v.marca + ' ' + v.modelo + ' ' + v.anio)}"
+             class="btn-primary" target="_blank" rel="noopener">WhatsApp</a>
+          <a href="tel:+18091234567" class="btn-ghost" style="color:#333;border-color:#ccc;">Llamar</a>
+        </div>`}
+    </div>`;
+
+  window._mgFotos  = todasFotos.length > 1 ? todasFotos : null;
+  window._mgActual = 0;
+
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function mgGoTo(idx) {
+  const fotos = window._mgFotos;
+  if (!fotos?.length) return;
+  window._mgActual = idx;
+  const main   = document.getElementById('mgMain');
+  const curr   = document.getElementById('mgCurrent');
+  const thumbs = document.querySelectorAll('.mg-thumb');
+  if (main)  main.src = `/static/uploads/${esc(fotos[idx])}`;
+  if (curr)  curr.textContent = idx + 1;
+  thumbs.forEach((t, i) => t.classList.toggle('active', i === idx));
+}
+function mgPrev() {
+  const f = window._mgFotos;
+  if (f) mgGoTo((window._mgActual - 1 + f.length) % f.length);
+}
+function mgNext() {
+  const f = window._mgFotos;
+  if (f) mgGoTo((window._mgActual + 1) % f.length);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+  window._mgFotos  = null;
+  window._mgActual = 0;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')      closeModal();
+  if (e.key === 'ArrowLeft'  && window._mgFotos) mgPrev();
+  if (e.key === 'ArrowRight' && window._mgFotos) mgNext();
+});
+
+// ══════════════════════════════════════════════════
+// SLIDER DE OFERTAS
+// ══════════════════════════════════════════════════
+
+let sliderOffers   = [];
+let sliderIndex    = 0;
+let sliderAutoplay = null;
+const SLIDE_MS     = 4500;
+
+async function loadOfertas() {
+  try {
+    const res = await fetch('/api/ofertas');
+    if (!res.ok) return;
+    sliderOffers = await res.json();
+    if (!sliderOffers.length) return;
+    const section = document.getElementById('ofertas-section');
+    if (section) section.style.display = '';
+    buildSlider();
+    startAutoplay();
+  } catch { /* silencioso */ }
+}
+
+function buildSlider() {
+  const track = document.getElementById('sliderTrack');
+  const dots  = document.getElementById('sliderDots');
+  if (!track || !dots) return;
+
+  track.innerHTML = sliderOffers.map((v, i) => {
+    const moneda = v.moneda || 'DOP';
+    const img    = v.imagen
+      ? `<img class="slide-img" src="/static/uploads/${esc(v.imagen)}"
+              alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" />`
+      : `<div class="slide-img-ph">🚗</div>`;
+    const precio = v.precio_oferta
+      ? `<div class="slide-prices">
+           <span class="slide-price-old">${fmtMoneda(v.precio, moneda)}</span>
+           <span class="slide-price-new">${fmtMoneda(v.precio_oferta, moneda)}</span>
+         </div>`
+      : `<div class="slide-prices">
+           <span class="slide-price-new">${fmtMoneda(v.precio, moneda)}</span>
+         </div>`;
+    return `
+      <div class="slide-item${i === 0 ? ' active' : ''}" data-index="${i}">
+        <div class="slide-img-wrap">${img}<div class="slide-overlay"></div></div>
+        <div class="slide-info">
+          <span class="slide-badge">OFERTA ESPECIAL</span>
+          <h3 class="slide-name">${esc(v.marca)} ${esc(v.modelo)}</h3>
+          <p class="slide-year">${v.anio} · ${esc(v.tipo)}</p>
+          ${precio}
+          <button class="slide-cta" onclick="openModalFromSlider(${v.id})">Ver detalles</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  dots.innerHTML = sliderOffers.map((_, i) =>
+    `<button class="slider-dot${i === 0 ? ' active' : ''}" onclick="goToSlide(${i})" aria-label="Slide ${i+1}"></button>`
+  ).join('');
+
+  // Registra listeners solo una vez — clona para evitar duplicados
+  const prev = document.getElementById('sliderPrev');
+  const next = document.getElementById('sliderNext');
+  if (prev) { const np = prev.cloneNode(true); prev.replaceWith(np); np.addEventListener('click', () => { goToSlide((sliderIndex - 1 + sliderOffers.length) % sliderOffers.length); resetAutoplay(); }); }
+  if (next) { const nn = next.cloneNode(true); next.replaceWith(nn); nn.addEventListener('click', () => { goToSlide((sliderIndex + 1) % sliderOffers.length); resetAutoplay(); }); }
+}
+
+function goToSlide(idx) {
+  document.querySelectorAll('.slide-item')[sliderIndex]?.classList.remove('active');
+  document.querySelectorAll('.slider-dot')[sliderIndex]?.classList.remove('active');
+  sliderIndex = idx;
+  document.querySelectorAll('.slide-item')[sliderIndex]?.classList.add('active');
+  document.querySelectorAll('.slider-dot')[sliderIndex]?.classList.add('active');
+}
+
+function startAutoplay()  { sliderAutoplay = setInterval(() => goToSlide((sliderIndex + 1) % sliderOffers.length), SLIDE_MS); }
+function resetAutoplay()  { clearInterval(sliderAutoplay); startAutoplay(); }
+
+function openModalFromSlider(id) {
+  // Asegura que el vehículo esté en allVehicles antes de abrir el modal
+  if (!allVehicles.find(x => x.id === id)) {
+    const v = sliderOffers.find(x => x.id === id);
+    if (v) allVehicles = [...allVehicles, v];
+  }
+  openModal(id);
+}
+
+// ══════════════════════════════════════════════════
+// ADMIN — FORMULARIO VEHÍCULO
+// ══════════════════════════════════════════════════
+
+function togglePrecioOferta(checkbox) {
+  const hidden = document.getElementById('fOfertaHidden');
+  const wrap   = document.getElementById('precioOfertaWrap');
+  if (hidden) hidden.value = checkbox.checked ? '1' : '0';
+  if (wrap)   wrap.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+function toggleForm() {
+  const wrap = document.getElementById('vehicleFormWrap');
+  const btn  = document.getElementById('toggleFormBtn');
+  if (!wrap) return;
+  const open = wrap.style.display === 'none' || wrap.style.display === '';
+  wrap.style.display = open ? 'block' : 'none';
+  if (btn) btn.textContent = open ? '✕ Cerrar formulario' : '+ Agregar vehículo';
+  if (!open) resetForm();
+}
+
+function resetForm() {
+  editingId  = null;
+  keepImages = [];
+
+  const form = document.getElementById('vehicleForm');
+  if (form) form.reset();
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  const txt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  set('editId', '');
+  set('fOfertaHidden', '0');
+  set('fMoneda', 'DOP');
+  txt('formTitle', 'Nuevo vehículo');
+  txt('submitBtn', 'Guardar vehículo');
+  txt('formError', '');
+
+  const wrap = document.getElementById('vehicleFormWrap');
+  if (wrap) wrap.style.display = 'none';
+  const toggleBtn = document.getElementById('toggleFormBtn');
+  if (toggleBtn) toggleBtn.textContent = '+ Agregar vehículo';
+  const pw = document.getElementById('precioOfertaWrap');
+  if (pw) pw.style.display = 'none';
+
+  renderImagenesExistentes([]);
+
+  // Sincronizar botones moneda (pueden existir o no según el rol)
+  syncMonedaBtns('DOP');
+}
+
+function editVehicle(id) {
+  const v = allVehicles.find(x => x.id === id);
+  if (!v) return;
+
+  editingId  = id;
+  keepImages = Array.isArray(v.imagenes_extra) ? [...v.imagenes_extra] : [];
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  const txt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  set('editId',          id);
+  set('fMarca',          v.marca);
+  set('fModelo',         v.modelo);
+  set('fAnio',           v.anio);
+  set('fTipo',           v.tipo);
+  set('fPrecio',         v.precio);
+  set('fDescripcion',    v.descripcion || '');
+  set('fOfertaHidden',   v.oferta ? '1' : '0');
+  set('fMoneda',         v.moneda || 'DOP');
+  set('fPrecioOferta',   v.precio_oferta || '');
+
+  const chk = document.getElementById('fOferta');
+  if (chk) {
+    chk.checked = !!v.oferta;
+    const pw = document.getElementById('precioOfertaWrap');
+    if (pw) pw.style.display = v.oferta ? 'block' : 'none';
+  }
+
+  txt('formTitle', `Editando: ${v.marca} ${v.modelo}`);
+  txt('submitBtn', 'Actualizar vehículo');
+  txt('formError', '');
+
+  syncMonedaBtns(v.moneda || 'DOP');
+  renderImagenesExistentes(keepImages);
+
+  const wrap = document.getElementById('vehicleFormWrap');
+  if (wrap) { wrap.style.display = 'block'; wrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  const toggleBtn = document.getElementById('toggleFormBtn');
+  if (toggleBtn) toggleBtn.textContent = '✕ Cerrar formulario';
+}
+
+// Sincroniza los botones DOP/USD del formulario admin
+// Función reutilizable desde aquí y desde el <script> inline del HTML
+function syncMonedaBtns(value) {
+  const btnDOP = document.getElementById('btnDOP');
+  const btnUSD = document.getElementById('btnUSD');
+  if (btnDOP) btnDOP.classList.toggle('active', value === 'DOP');
+  if (btnUSD) btnUSD.classList.toggle('active', value === 'USD');
+}
+
+// Expuesta globalmente para el onclick inline del HTML
+window.setMoneda = function(value) {
+  const el = document.getElementById('fMoneda');
+  if (el) el.value = value;
+  syncMonedaBtns(value);
+};
+
+function renderImagenesExistentes(lista) {
+  const cont = document.getElementById('imagenesExistentes');
+  if (!cont) return;
+  if (!lista.length) { cont.innerHTML = ''; cont.style.display = 'none'; return; }
+  cont.style.display = 'flex';
+  cont.innerHTML = lista.map((nombre, i) => `
+    <div class="img-thumb-wrap" id="ithumb-${i}">
+      <img src="/static/uploads/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
+      <button type="button" class="img-thumb-del" onclick="eliminarFotoExistente(${i})" aria-label="Eliminar foto ${i+1}">✕</button>
+    </div>`).join('');
+}
+
+function eliminarFotoExistente(idx) {
+  keepImages.splice(idx, 1);
+  renderImagenesExistentes(keepImages);
+}
+
+async function submitVehicle(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('formError');
+  const btn   = document.getElementById('submitBtn');
+  if (errEl) errEl.textContent = '';
+  if (btn)   { btn.disabled = true; btn.textContent = 'Guardando…'; }
+
+  const formData = new FormData(document.getElementById('vehicleForm'));
+  formData.set('imagenes_extra_keep', JSON.stringify(keepImages));
+
+  try {
+    const isEdit = !!editingId;
+    const res    = await fetch(
+      isEdit ? `/api/vehiculos/${editingId}` : '/api/vehiculos',
+      { method: isEdit ? 'PUT' : 'POST', body: formData }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      if (errEl) errEl.textContent = data.error || 'Error al guardar.';
+    } else {
+      showToast(isEdit ? '✅ Vehículo actualizado' : '✅ Vehículo agregado', 'success');
+      resetForm();
+      await Promise.all([loadVehicles(), loadOfertas()]);
+    }
+  } catch {
+    if (errEl) errEl.textContent = 'Error de conexión.';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = editingId ? 'Actualizar vehículo' : 'Guardar vehículo'; }
+  }
+}
+
+async function deleteVehicle(id) {
+  const v = allVehicles.find(x => x.id === id);
+  if (!v || !confirm(`¿Eliminar "${v.marca} ${v.modelo}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    const res = await fetch(`/api/vehiculos/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('🗑 Vehículo eliminado', 'success');
+      await Promise.all([loadVehicles(), loadOfertas()]);
+    } else {
+      showToast('Error al eliminar', 'error');
+    }
+  } catch { showToast('Error de conexión', 'error'); }
+}
+
+// ══════════════════════════════════════════════════
+// MOBILE NAV
+// ══════════════════════════════════════════════════
+
+function initMobileNav() {
+  const toggle = document.getElementById('menuToggle');
+  const nav    = document.getElementById('mobileNav');
+  if (!toggle || !nav) return;
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('open');
+    toggle.classList.toggle('open', open);
+  });
+}
+
+function closeMobile() {
+  document.getElementById('mobileNav')?.classList.remove('open');
+  document.getElementById('menuToggle')?.classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════
+// TRIGGER SECRETO (5 clics en © → /login)
+// ══════════════════════════════════════════════════
+
+function initSecretTrigger() {
+  const trigger = document.getElementById('secretTrigger');
+  if (!trigger) return;
+  let clicks = 0, timeout;
+  trigger.addEventListener('click', () => {
+    clicks++;
+    trigger.classList.add('lit');
+    clearTimeout(timeout);
+    timeout = setTimeout(() => { clicks = 0; trigger.classList.remove('lit'); }, 3000);
+    if (clicks >= 5) {
+      clicks = 0; clearTimeout(timeout);
+      trigger.classList.remove('lit');
+      window.location.href = '/login';
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+// CONTADOR HERO
+// ══════════════════════════════════════════════════
+
+function updateStatCount(total) {
+  const el = document.getElementById('statVehiculos');
+  if (!el) return;
+  let current = 0;
+  const step  = Math.max(1, Math.ceil(total / 20));
+  const timer = setInterval(() => {
+    current = Math.min(current + step, total);
+    el.textContent = current;
+    if (current >= total) clearInterval(timer);
+  }, 40);
+}
+
+// ══════════════════════════════════════════════════
+// UTILIDADES
+// ══════════════════════════════════════════════════
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function formatPrice(n) {
+  return Number(n).toLocaleString('es-DO');
+}
+
+let _toastTimer;
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  clearTimeout(_toastTimer);
+  toast.textContent = msg;
+  toast.className   = `toast show${type ? ' ' + type : ''}`;
+  _toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3200);
+}
+// Exponer globalmente para uso desde scripts inline
+window.showToast = showToast;
