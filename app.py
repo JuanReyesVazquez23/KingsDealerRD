@@ -1,5 +1,5 @@
 """
-KingsDealer - Flask Backend v6
+KingsDealer - Flask Backend v6 (PostgreSQL Version)
 + Tabla configuracion (mapa lat/lon configurable por admin)
 + Tabla anuncios_clientes (clientes pueden publicar su auto)
 + Rutas /vender y /api/anuncios
@@ -7,7 +7,8 @@ KingsDealer - Flask Backend v6
 
 import os
 import json
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import hashlib
 import secrets
 import re
@@ -34,7 +35,8 @@ MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 7
 app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-DATABASE = os.path.join(app.root_path, 'KingsDealer.db')
+# Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 _admin_user = os.environ.get("ADMIN_USER")
 _admin_pass = os.environ.get("ADMIN_PASS")
@@ -46,13 +48,38 @@ ADMIN_PASS_HASH = hashlib.sha256(_admin_pass.encode()).hexdigest()
 
 
 # ══════════════════════════════════════════════════════════════════
-# BASE DE DATOS
+# BASE DE DATOS (POSTGRESQL ADAPTER)
 # ══════════════════════════════════════════════════════════════════
 
+class PostgresConnection:
+    """Clase de ayuda para mantener la sintaxis limpia de tu app original"""
+    def __init__(self, url):
+        self.url = url
+        self.conn = None
+        self.cur = None
+
+    def __enter__(self):
+        self.conn = psycopg2.connect(self.url, cursor_factory=RealDictCursor)
+        self.cur = self.conn.cursor()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.cur.close()
+        self.conn.close()
+
+    def execute(self, query, params=None):
+        # Convierte el marcador de posición '?' de SQLite al '%s' de PostgreSQL
+        query = query.replace('?', '%s')
+        self.cur.execute(query, params)
+        return self.cur
+
+
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return PostgresConnection(DATABASE_URL)
 
 
 def init_db():
@@ -61,7 +88,7 @@ def init_db():
         # ── Tabla principal de vehículos ──
         conn.execute('''
             CREATE TABLE IF NOT EXISTS vehiculos (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                id            SERIAL PRIMARY KEY,
                 marca         TEXT    NOT NULL,
                 modelo        TEXT    NOT NULL,
                 anio          INTEGER NOT NULL,
@@ -69,14 +96,13 @@ def init_db():
                 precio        REAL    NOT NULL,
                 descripcion   TEXT,
                 imagen        TEXT,
-                creado_en     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                creado_en     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                oferta        INTEGER NOT NULL DEFAULT 0,
+                precio_oferta REAL,
+                moneda        TEXT NOT NULL DEFAULT 'DOP',
+                imagenes_extra TEXT
             )
         ''')
-        cols = [r[1] for r in conn.execute("PRAGMA table_info(vehiculos)").fetchall()]
-        if 'oferta'         not in cols: conn.execute("ALTER TABLE vehiculos ADD COLUMN oferta INTEGER NOT NULL DEFAULT 0")
-        if 'precio_oferta'  not in cols: conn.execute("ALTER TABLE vehiculos ADD COLUMN precio_oferta REAL")
-        if 'moneda'         not in cols: conn.execute("ALTER TABLE vehiculos ADD COLUMN moneda TEXT NOT NULL DEFAULT 'DOP'")
-        if 'imagenes_extra' not in cols: conn.execute("ALTER TABLE vehiculos ADD COLUMN imagenes_extra TEXT")
 
         # ── Tabla de configuración (clave/valor) ──
         conn.execute('''
@@ -85,15 +111,16 @@ def init_db():
                 valor TEXT NOT NULL
             )
         ''')
-        # Valores por defecto para el mapa (Av. Abraham Lincoln, DN)
-        conn.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('mapa_lat', '18.4737')")
-        conn.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('mapa_lon', '-69.9490')")
-        conn.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo')")
+        
+        # Valores por defecto para el mapa
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_lat', '18.4737') ON CONFLICT (clave) DO NOTHING")
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_lon', '-69.9490') ON CONFLICT (clave) DO NOTHING")
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo') ON CONFLICT (clave) DO NOTHING")
 
         # ── Tabla de anuncios de clientes ──
         conn.execute('''
             CREATE TABLE IF NOT EXISTS anuncios_clientes (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                id          SERIAL PRIMARY KEY,
                 nombre      TEXT    NOT NULL,
                 telefono    TEXT    NOT NULL,
                 whatsapp    TEXT,
@@ -110,10 +137,10 @@ def init_db():
                 creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        conn.commit()
 
 
-init_db()
+if DATABASE_URL:
+    init_db()
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -136,7 +163,6 @@ def sanitize_text(value, max_len=255):
     return re.sub(r'[<>"\'`;]', '', value).strip()[:max_len]
 
 def sanitize_phone(value):
-    """Permite solo dígitos, +, -, espacios y paréntesis."""
     if not isinstance(value, str): return ''
     return re.sub(r'[^0-9+\-() ]', '', value).strip()[:20]
 
@@ -162,7 +188,7 @@ def row_to_dict(row):
 
 def get_config(clave, default=''):
     with get_db() as conn:
-        r = conn.execute("SELECT valor FROM configuracion WHERE clave=?", (clave,)).fetchone()
+        r = conn.execute("SELECT valor FROM configuracion WHERE clave=? LIMIT 1", (clave,)).fetchone()
     return r['valor'] if r else default
 
 
@@ -235,33 +261,31 @@ def api_vehiculos():
     tipo   = request.args.get('tipo', '')
     params = []
 
-    # Vehículos del dealer
     q_dealer = (
         'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
         'creado_en, oferta, precio_oferta, moneda, imagenes_extra, '
         'NULL as nombre_vendedor, NULL as telefono_vendedor, '
-        'NULL as whatsapp_vendedor, NULL as condicion, "dealer" as origen '
+        'NULL as whatsapp_vendedor, NULL as condicion, \'dealer\' as origen '
         'FROM vehiculos'
     )
     if tipo:
         q_dealer += ' WHERE tipo = ?'
         params.append(tipo)
 
-    # Anuncios de clientes aprobados
     q_clientes = (
         'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
         'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
         'NULL as imagenes_extra, nombre as nombre_vendedor, '
         'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
-        'condicion, "cliente" as origen '
-        'FROM anuncios_clientes WHERE estado = "aprobado"'
+        'condicion, \'cliente\' as origen '
+        'FROM anuncios_clientes WHERE estado = \'aprobado\''
     )
     if tipo:
         q_clientes += ' AND tipo = ?'
         params.append(tipo)
 
     full_query = (
-        f'SELECT * FROM ({q_dealer} UNION ALL {q_clientes}) '
+        f'SELECT * FROM ({q_dealer} UNION ALL {q_clientes}) AS resultado '
         f'ORDER BY creado_en DESC'
     )
 
@@ -311,11 +335,11 @@ def api_crear_vehiculo():
 
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO vehiculos (marca,modelo,anio,tipo,precio,descripcion,imagen,oferta,precio_oferta,moneda,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO vehiculos (marca,modelo,anio,tipo,precio,descripcion,imagen,oferta,precio_oferta,moneda,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
             (marca, modelo, anio, tipo, precio, descripcion, imagen, oferta, precio_oferta, moneda, json.dumps(imagenes_extra))
         )
-        conn.commit()
-        row = conn.execute('SELECT * FROM vehiculos WHERE id=?', (cur.lastrowid,)).fetchone()
+        generated_id = cur.fetchone()['id']
+        row = conn.execute('SELECT * FROM vehiculos WHERE id=?', (generated_id,)).fetchone()
     return jsonify(row_to_dict(row)), 201
 
 
@@ -366,7 +390,6 @@ def api_editar_vehiculo(vid):
             'UPDATE vehiculos SET marca=?,modelo=?,anio=?,tipo=?,precio=?,descripcion=?,imagen=?,oferta=?,precio_oferta=?,moneda=?,imagenes_extra=? WHERE id=?',
             (marca, modelo, anio, tipo, precio, descripcion, imagen, oferta, precio_oferta, moneda, json.dumps(imagenes_extra), vid)
         )
-        conn.commit()
         row = conn.execute('SELECT * FROM vehiculos WHERE id=?', (vid,)).fetchone()
     return jsonify(row_to_dict(row))
 
@@ -381,7 +404,6 @@ def api_eliminar_vehiculo(vid):
         borrar_imagen(d['imagen'])
         for n in d['imagenes_extra']: borrar_imagen(n)
         conn.execute('DELETE FROM vehiculos WHERE id=?', (vid,))
-        conn.commit()
     return jsonify({'ok': True})
 
 
@@ -406,17 +428,15 @@ def api_set_mapa():
     lon   = str(data.get('lon',   '')).strip()
     label = sanitize_text(str(data.get('label', '')), 200)
 
-    # Validar que lat/lon sean números
     try:
         float(lat); float(lon)
     except ValueError:
         return jsonify({'error': 'Coordenadas inválidas.'}), 400
 
     with get_db() as conn:
-        conn.execute("INSERT OR REPLACE INTO configuracion (clave,valor) VALUES ('mapa_lat',?)",   (lat,))
-        conn.execute("INSERT OR REPLACE INTO configuracion (clave,valor) VALUES ('mapa_lon',?)",   (lon,))
-        conn.execute("INSERT OR REPLACE INTO configuracion (clave,valor) VALUES ('mapa_label',?)", (label,))
-        conn.commit()
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lat',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor",   (lat,))
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lon',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor",   (lon,))
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_label',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor", (label,))
     return jsonify({'ok': True, 'lat': lat, 'lon': lon, 'label': label})
 
 
@@ -449,11 +469,11 @@ def api_crear_anuncio():
 
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
             (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen)
         )
-        conn.commit()
-    return jsonify({'ok': True, 'id': cur.lastrowid}), 201
+        generated_id = cur.fetchone()['id']
+    return jsonify({'ok': True, 'id': generated_id}), 201
 
 
 @app.route('/api/anuncios', methods=['GET'])
@@ -480,7 +500,6 @@ def api_actualizar_anuncio(aid):
         return jsonify({'error': 'Estado inválido.'}), 400
     with get_db() as conn:
         conn.execute('UPDATE anuncios_clientes SET estado=? WHERE id=?', (estado, aid))
-        conn.commit()
     return jsonify({'ok': True})
 
 
@@ -492,7 +511,6 @@ def api_eliminar_anuncio(aid):
         if not row: return jsonify({'error': 'No encontrado.'}), 404
         borrar_imagen(row['imagen'])
         conn.execute('DELETE FROM anuncios_clientes WHERE id=?', (aid,))
-        conn.commit()
     return jsonify({'ok': True})
 
 
