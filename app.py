@@ -36,7 +36,10 @@ app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# Railway inyecta "postgres://" pero psycopg2 >= 2.9 necesita "postgresql://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 _admin_user = os.environ.get("ADMIN_USER")
 _admin_pass = os.environ.get("ADMIN_PASS")
@@ -74,7 +77,11 @@ class PostgresConnection:
     def execute(self, query, params=None):
         # Convierte el marcador de posición '?' de SQLite al '%s' de PostgreSQL
         query = query.replace('?', '%s')
-        self.cur.execute(query, params)
+        # psycopg2 no acepta lista vacía si no hay placeholders — normalizar
+        if params is not None and len(params) == 0:
+            self.cur.execute(query)
+        else:
+            self.cur.execute(query, params or None)
         return self.cur
 
 
@@ -214,12 +221,16 @@ def offline():
 
 @app.route('/')
 def index():
-    role    = session.get('role', 'user')
-    mapa    = {
-        'lat':   get_config('mapa_lat',   '18.4737'),
-        'lon':   get_config('mapa_lon',   '-69.9490'),
-        'label': get_config('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo'),
-    }
+    role = session.get('role', 'user')
+    try:
+        mapa = {
+            'lat':   get_config('mapa_lat',   '18.4737'),
+            'lon':   get_config('mapa_lon',   '-69.9490'),
+            'label': get_config('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo'),
+        }
+    except Exception:
+        # Si la DB no responde, usar valores por defecto y seguir cargando la página
+        mapa = {'lat': '18.4737', 'lon': '-69.9490', 'label': 'KingsDealer — Santo Domingo'}
     return render_template('index.html', role=role, mapa=mapa)
 
 
@@ -518,6 +529,18 @@ def api_eliminar_anuncio(aid):
 @app.route('/static/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+# ── Manejador global de errores 500 ──────────────
+@app.errorhandler(500)
+def internal_error(e):
+    import traceback
+    app.logger.error("Error 500: %s\n%s", str(e), traceback.format_exc())
+    return jsonify({'error': 'Error interno del servidor. Intenta de nuevo.'}), 500
+
+@app.errorhandler(413)
+def request_too_large(e):
+    return jsonify({'error': 'El archivo es demasiado grande. Máx. 8 MB por foto.'}), 413
 
 
 if __name__ == '__main__':
