@@ -696,6 +696,8 @@ window.showToast = showToast;
 
 // ══════════════════════════════════════════════════
 // PREVIEW DE FOTOS NUEVAS — sin límite fijo
+// Aplica al panel admin Y al formulario de vendedor
+// (ambos usan el id "fImagenesExtra")
 // ══════════════════════════════════════════════════
 
 // Almacena los File objects seleccionados por el usuario (nuevas fotos)
@@ -705,6 +707,9 @@ function initFotoPreview() {
   // Aplica para el input del admin panel y del formulario de vendedor (mismo id)
   const input = document.getElementById('fImagenesExtra');
   if (!input) return;
+
+  // Asegurarse de que el input tenga el atributo multiple
+  input.setAttribute('multiple', '');
 
   input.addEventListener('change', () => {
     const newFiles = Array.from(input.files);
@@ -771,3 +776,61 @@ function syncFilesToInput() {
     // DataTransfer not supported on older browsers — files sent normally
   }
 }
+
+// ══════════════════════════════════════════════════
+// FORMULARIO DE VENDEDOR PARTICULAR (/vender)
+// Submit con soporte de múltiples fotos
+// ══════════════════════════════════════════════════
+
+function initVendedorForm() {
+  const form = document.getElementById('anuncioForm');
+  if (!form) return;
+
+  // Inicializar preview de fotos también en el form de vendedor
+  initFotoPreview();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('anuncioError');
+    const btn   = document.getElementById('anuncioSubmitBtn');
+    if (errEl) errEl.textContent = '';
+    if (btn)   { btn.disabled = true; btn.textContent = 'Enviando…'; }
+
+    // Sincronizar archivos pendientes al input antes de crear FormData
+    syncFilesToInput();
+
+    const formData = new FormData(form);
+
+    try {
+      const res  = await fetch('/api/anuncios', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        if (errEl) errEl.textContent = data.error || 'Error al enviar el anuncio.';
+      } else {
+        // Redirigir o mostrar mensaje de éxito
+        const success = document.getElementById('anuncioSuccess');
+        if (success) {
+          form.style.display = 'none';
+          success.style.display = 'block';
+        } else {
+          showToast('✅ Anuncio enviado correctamente', 'success');
+          form.reset();
+          pendingFiles = [];
+          renderPendingPreviews();
+        }
+      }
+    } catch {
+      if (errEl) errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Publicar mi vehículo'; }
+    }
+  });
+}
+window.initVendedorForm = initVendedorForm;
+
+// Auto-inicializar el form de vendedor si existe en la página actual
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('anuncioForm')) {
+    initVendedorForm();
+  }
+});

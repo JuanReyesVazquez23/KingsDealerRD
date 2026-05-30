@@ -1195,6 +1195,26 @@ ul { list-style: none; }
   color: var(--text);
 }
 
+/* ══ FOTOS MÚLTIPLES — overrides para fondo blanco ══ */
+.vender-form-section .fotos-extra-group label {
+  color: var(--text-2);
+  font-size: .75rem;
+  font-family: var(--font-cond);
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.vender-form-section .fotos-hint {
+  color: var(--text-3);
+}
+.vender-form-section .fotos-count {
+  color: var(--text-2);
+}
+.vender-form-section .foto-preview-item {
+  background: var(--off-white);
+  border-color: var(--light-border);
+}
+
 /* Error visual en campo */
 .vender-form-section .field-error {
   border-color: var(--red) !important;
