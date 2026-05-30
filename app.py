@@ -31,7 +31,8 @@ app.secret_key = _secret
 
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 ALLOWED_EXTENSIONS  = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
-MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 20   # 20 fotos × 8 MB máxapp.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
+MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 20   # 20 fotos × 8 MB máx
+app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
