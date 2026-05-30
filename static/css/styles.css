@@ -833,12 +833,11 @@ ul { list-style: none; }
 .banco-card.banco-open { border-color: var(--red); }
 .banco-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; }
 
-/* Logo banco — real con SVG o imagen */
+/* Logo banco — real con SVG */
 .banco-logo { flex-shrink: 0; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--white); }
 .banco-logo svg { width: 44px; height: 44px; display: block; }
-/* Logos reales (imágenes): cubren el área y se centran */
-.banco-logo-img { padding: 0; background: var(--white); }
-.banco-logo-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Logos reales — imagen cubre el área */
+.banco-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .banco-info-brief { flex: 1; min-width: 0; }
 .banco-name { display: block; font-family: var(--font-cond); font-size: .92rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1599,7 +1598,7 @@ ul { list-style: none; }
 .banco-tag  { font-size: .72rem; margin-top: 2px; }
 .banco-logo { width: 48px; height: 48px; border-radius: 12px; }
 .banco-logo svg { width: 48px; height: 48px; }
-.banco-logo-img { width: 48px; height: 48px; }
+.banco-logo img { width: 48px; height: 48px; object-fit: contain; }
 .banco-detalle { padding: 0 22px 22px; }
 .banco-card.banco-open .banco-detalle { padding-top: 16px; }
 .banco-detail-grid { gap: 10px; margin-bottom: 14px; }
@@ -1657,7 +1656,7 @@ ul { list-style: none; }
   align-items: center;
   gap: 10px;
   font-family: var(--font-cond);
-  font-size: .9rem;
+  font-size: .88rem;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -1667,13 +1666,13 @@ ul { list-style: none; }
   border-radius: 50px;
   padding: 13px 30px;
   cursor: pointer;
-  transition: all var(--t);
+  transition: all .2s var(--ease);
   box-shadow: var(--shadow-sm);
 }
 .btn-show-more:hover {
   border-color: var(--red);
   color: var(--red);
-  box-shadow: 0 4px 16px var(--red-glow);
+  box-shadow: 0 4px 18px var(--red-glow);
   transform: translateY(-1px);
 }
 .show-more-arrow {
@@ -1683,91 +1682,47 @@ ul { list-style: none; }
   transition: transform .3s var(--ease);
 }
 
-/* ── Refinamientos profesionales generales ────────── */
+/* ── Refinamientos profesionales ─────────────────── */
 
-/* Header nav — hover más sutil, espaciado premium */
-.header-nav a {
-  font-size: .82rem;
-  letter-spacing: 1px;
+/* Filter buttons — pill shape más limpio */
+.filter-btn {
+  border-radius: 50px;
 }
 
-/* Section eyebrow — línea decorativa más elegante */
-.section-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-cond);
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--red);
-  margin-bottom: 14px;
-}
+/* Section eyebrow — decoración simétrica */
 .section-eyebrow::before,
 .section-eyebrow::after {
   content: '';
-  width: 24px;
+  width: 22px;
   height: 1.5px;
-  background: var(--red);
-  opacity: .5;
+  background: currentColor;
+  opacity: .45;
   display: inline-block;
+  vertical-align: middle;
+  margin: 0 4px;
 }
 
-/* Tarjetas de vehículos — borde más refinado */
-.vehicle-card {
-  transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
-  border-radius: var(--r-lg);
-}
-.vehicle-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 36px rgba(0,0,0,.11);
-}
-
-/* Filter buttons — look más limpio */
-.filter-btn {
-  font-family: var(--font-cond);
-  font-weight: 700;
-  letter-spacing: .8px;
-  border-radius: 50px;
-  font-size: .82rem;
-  transition: all .18s var(--ease);
-}
-
-/* Sort bar — más integrado */
-.sort-bar {
-  border-radius: var(--r-md);
-}
-
-/* Ben cards — hover con acento rojo */
-.ben-card:hover {
-  border-color: rgba(204,0,0,.25);
-  box-shadow: 0 4px 20px rgba(0,0,0,.07);
-}
-
-/* Test card quote marks — toque editorial */
+/* Testimonios — comillas tipográficas */
 .test-text::before {
-  content: 'C';
-  font-family: Georgia, serif;
-  font-size: 2.2rem;
+  content: '\201C';
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2rem;
   color: var(--red);
-  opacity: .3;
+  opacity: .25;
   display: block;
-  line-height: .5;
-  margin-bottom: 8px;
+  line-height: .6;
+  margin-bottom: 6px;
 }
 
-/* Footer — más compacto y elegante */
-.footer-bottom {
-  border-top: 1px solid rgba(255,255,255,.06);
-}
-
-/* Banco cards — transición más suave */
+/* Banco cards — micro-elevación en hover */
 .banco-card {
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease);
 }
-.banco-card:hover {
-  transform: translateY(-2px);
+.banco-card:hover { transform: translateY(-2px); }
+
+/* Ben cards — sombra más sutil */
+.ben-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,.08);
 }
 
 /* ═══════════════════════════════════════════════

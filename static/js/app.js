@@ -22,8 +22,8 @@ let filterMarca  = '';
 let keepImages   = [];
 
 // ── Show more / Show less — solo activo en filtro "Todos" ──
-const CARDS_INITIAL = 6;  // cuántas tarjetas mostrar al inicio
-let showingAll      = false;  // false = colapsado, true = expandido
+const CARDS_INITIAL = 6;  // tarjetas visibles al inicio
+let showingAll      = false;
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,7 +69,7 @@ function badgeMoneda(moneda) {
 
 // ── Render tarjetas ───────────────────────────────
 function renderVehicles(list) {
-  const grid    = document.getElementById('vehiclesGrid');
+  const grid     = document.getElementById('vehiclesGrid');
   const moreWrap = document.getElementById('showMoreWrap');
   if (!grid) return;
 
@@ -83,17 +83,13 @@ function renderVehicles(list) {
     return;
   }
 
-  // Mostrar botón solo cuando el filtro es "Todos" y hay más de CARDS_INITIAL vehículos
-  const isTodos = !activeFilter;
+  // Botón visible solo en filtro "Todos" con más de CARDS_INITIAL resultados
+  const isTodos     = !activeFilter;
   const needsToggle = isTodos && list.length > CARDS_INITIAL;
-
-  // Si cambiamos de filtro o hay pocos, siempre colapsar
   if (!needsToggle) showingAll = false;
 
-  // Determinar qué slice mostrar
   const displayList = needsToggle && !showingAll ? list.slice(0, CARDS_INITIAL) : list;
 
-  // Actualizar botón
   if (moreWrap) {
     moreWrap.style.display = needsToggle ? 'flex' : 'none';
     const label = document.getElementById('showMoreLabel');
@@ -230,14 +226,11 @@ function clearSort() {
 // ── Mostrar más / Mostrar menos ───────────────────
 function toggleShowMore() {
   showingAll = !showingAll;
-  // Re-aplicar sort para respetar orden actual y actualizar vista
-  applySort();
-  // Si colapsamos, hacer scroll suave al inicio del catálogo
+  applySort(); // re-renderiza respetando filtros y orden actuales
   if (!showingAll) {
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
-// Exponer para uso desde onclick inline
 window.toggleShowMore = toggleShowMore;
 
 // ══════════════════════════════════════════════════
