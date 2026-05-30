@@ -31,8 +31,7 @@ app.secret_key = _secret
 
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 ALLOWED_EXTENSIONS  = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
-MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 7
-app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
+MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 20   # 20 fotos × 8 MB máxapp.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
@@ -331,7 +330,7 @@ def api_crear_vehiculo():
     except: precio_oferta = None
 
     imagen = guardar_imagen(request.files.get('imagen'))
-    imagenes_extra = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')[:6]] if n]
+    imagenes_extra = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
 
     with get_db() as conn:
         cur = conn.execute(
@@ -382,8 +381,8 @@ def api_editar_vehiculo(vid):
     for nombre in ex['imagenes_extra']:
         if nombre not in keep_list: borrar_imagen(nombre)
 
-    nuevas_extra   = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')[:6]] if n]
-    imagenes_extra = (keep_list + nuevas_extra)[:6]
+    nuevas_extra   = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
+    imagenes_extra = keep_list + nuevas_extra
 
     with get_db() as conn:
         conn.execute(

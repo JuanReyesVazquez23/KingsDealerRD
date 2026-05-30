@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSortBar();
   initMobileNav();
   initSecretTrigger();
+  initFotoPreview();
 });
 
 // ══════════════════════════════════════════════════
@@ -458,8 +459,11 @@ function toggleForm() {
 }
 
 function resetForm() {
-  editingId  = null;
-  keepImages = [];
+  editingId    = null;
+  keepImages   = [];
+  pendingFiles = [];
+  const pprev = document.getElementById('fotoPendingPreview'); if (pprev) pprev.innerHTML = '';
+  const fcnt  = document.getElementById('fotosCount');         if (fcnt)  fcnt.textContent = '';
 
   const form = document.getElementById('vehicleForm');
   if (form) form.reset();
@@ -548,11 +552,12 @@ function renderImagenesExistentes(lista) {
   const cont = document.getElementById('imagenesExistentes');
   if (!cont) return;
   if (!lista.length) { cont.innerHTML = ''; cont.style.display = 'none'; return; }
-  cont.style.display = 'flex';
+  cont.style.display = 'grid';
+  cont.className = 'imagenes-existentes foto-preview-grid';
   cont.innerHTML = lista.map((nombre, i) => `
-    <div class="img-thumb-wrap" id="ithumb-${i}">
+    <div class="foto-preview-item" id="ithumb-${i}">
       <img src="/static/uploads/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
-      <button type="button" class="img-thumb-del" onclick="eliminarFotoExistente(${i})" aria-label="Eliminar foto ${i+1}">✕</button>
+      <button type="button" class="foto-preview-del" onclick="eliminarFotoExistente(${i})" aria-label="Eliminar foto ${i+1}">✕</button>
     </div>`).join('');
 }
 
@@ -688,3 +693,81 @@ function showToast(msg, type = '') {
 }
 // Exponer globalmente para uso desde scripts inline
 window.showToast = showToast;
+
+// ══════════════════════════════════════════════════
+// PREVIEW DE FOTOS NUEVAS — sin límite fijo
+// ══════════════════════════════════════════════════
+
+// Almacena los File objects seleccionados por el usuario (nuevas fotos)
+let pendingFiles = [];
+
+function initFotoPreview() {
+  // Aplica para el input del admin panel y del formulario de vendedor (mismo id)
+  const input = document.getElementById('fImagenesExtra');
+  if (!input) return;
+
+  input.addEventListener('change', () => {
+    const newFiles = Array.from(input.files);
+    // Acumular — no reemplazar — para permitir selecciones múltiples en iOS/Safari
+    newFiles.forEach(f => { if (!pendingFiles.find(p => p.name === f.name && p.size === f.size)) pendingFiles.push(f); });
+    renderPendingPreviews();
+    // Limpiar input para permitir re-selección del mismo archivo
+    input.value = '';
+  });
+}
+window.initFotoPreview = initFotoPreview;
+
+function renderPendingPreviews() {
+  let previewCont = document.getElementById('fotoPendingPreview');
+  if (!previewCont) {
+    const input = document.getElementById('fImagenesExtra');
+    if (!input) return;
+    previewCont = document.createElement('div');
+    previewCont.id = 'fotoPendingPreview';
+    previewCont.className = 'foto-preview-grid';
+    previewCont.style.marginTop = '10px';
+    input.parentNode.insertBefore(previewCont, input.nextSibling);
+  }
+
+  let countEl = document.getElementById('fotosCount');
+  if (!countEl) {
+    countEl = document.createElement('p');
+    countEl.id = 'fotosCount';
+    countEl.className = 'fotos-count';
+    const previewCont2 = document.getElementById('fotoPendingPreview');
+    if (previewCont2) previewCont2.parentNode.insertBefore(countEl, previewCont2.nextSibling);
+  }
+
+  previewCont.innerHTML = pendingFiles.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    return `<div class="foto-preview-item">
+      <img src="${url}" alt="Nueva foto ${i+1}" />
+      <button type="button" class="foto-preview-del" onclick="removePendingFile(${i})" aria-label="Quitar foto">✕</button>
+    </div>`;
+  }).join('');
+
+  const total = keepImages.length + pendingFiles.length;
+  countEl.textContent = total > 0 ? `${total} foto${total !== 1 ? 's' : ''} en total` : '';
+  countEl.className   = 'fotos-count';
+
+  // Sincronizar un DataTransfer con el input para que FormData envíe todos los archivos
+  syncFilesToInput();
+}
+
+function removePendingFile(idx) {
+  pendingFiles.splice(idx, 1);
+  renderPendingPreviews();
+}
+window.removePendingFile = removePendingFile;
+
+function syncFilesToInput() {
+  // Rebuild the file input's FileList from pendingFiles using DataTransfer
+  try {
+    const dt = new DataTransfer();
+    pendingFiles.forEach(f => dt.items.add(f));
+    const input = document.getElementById('fImagenesExtra');
+    if (input) input.files = dt.files;
+  } catch (e) {
+    // DataTransfer not supported on older browsers — files sent normally
+  }
+}

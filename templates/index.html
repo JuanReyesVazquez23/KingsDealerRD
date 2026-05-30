@@ -3,6 +3,15 @@
 
 {% block body %}
 <script>const ROLE = "{{ role }}";</script>
+<script>
+// PWA Manifest — inyectado dinámicamente para compatibilidad con template
+(function() {
+  var link = document.createElement('link');
+  link.rel  = 'manifest';
+  link.href = '/static/manifest.json';
+  document.head.appendChild(link);
+})();
+</script>
 
 <!-- HEADER -->
 <header class="site-header">
@@ -69,6 +78,24 @@
     <div class="stat">
       <span class="stat-num">500+</span>
       <span class="stat-label">Clientes atendidos</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- MARCAS STRIP -->
+<section class="marcas-strip">
+  <div class="marcas-inner">
+    <p class="marcas-label">Vehículos de las mejores marcas</p>
+    <div class="marcas-track">
+      <div class="marcas-list">
+        <span>Toyota</span><span>Honda</span><span>Nissan</span><span>Hyundai</span>
+        <span>Kia</span><span>Ford</span><span>Chevrolet</span><span>BMW</span>
+        <span>Mercedes-Benz</span><span>Jeep</span><span>Mitsubishi</span><span>Mazda</span>
+        <span>Toyota</span><span>Honda</span><span>Nissan</span><span>Hyundai</span>
+        <span>Kia</span><span>Ford</span><span>Chevrolet</span><span>BMW</span>
+        <span>Mercedes-Benz</span><span>Jeep</span><span>Mitsubishi</span><span>Mazda</span>
+      </div>
     </div>
   </div>
 </section>
@@ -207,12 +234,12 @@
         <div class="form-group full fotos-extra-group">
           <label>Fotos adicionales
             <small style="text-transform:none;letter-spacing:0;color:rgba(255,255,255,.4);font-weight:400">
-              — hasta 6 más (7 total)
+              — JPG, PNG, WEBP · máx. 8 MB c/u · sin límite de cantidad
             </small>
           </label>
           <div class="imagenes-existentes" id="imagenesExistentes" style="display:none"></div>
           <input type="file" id="fImagenesExtra" name="imagenes_extra" accept="image/*" multiple data-crop data-ratio="1.6" />
-          <p class="fotos-hint">JPG, PNG, WEBP · máx. 8 MB cada una</p>
+          <p class="fotos-hint">Puedes seleccionar varias veces para agregar más fotos</p>
         </div>
 
         <div class="oferta-toggle-wrap">
@@ -376,6 +403,62 @@
       </div>
       <h3>Garantía Post-Venta</h3>
       <p>Respaldo continuo después de la compra. Tu tranquilidad, nuestra responsabilidad.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- PROCESO -->
+<section class="proceso-section">
+  <div class="proceso-inner">
+    <div class="section-header">
+      <p class="section-eyebrow">¿Cómo funciona?</p>
+      <h2 class="section-title">Tu vehículo en <span class="accent">4 pasos</span></h2>
+      <p class="section-sub">Un proceso sencillo, rápido y completamente acompañado por nuestro equipo</p>
+    </div>
+    <div class="proceso-grid">
+      <div class="paso-card">
+        <div class="paso-num">01</div>
+        <div class="paso-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </div>
+        <h3>Explora el catálogo</h3>
+        <p>Navega cientos de vehículos filtrados por tipo, marca y precio. Encuentra el que se ajusta a tu presupuesto.</p>
+      </div>
+      <div class="paso-card">
+        <div class="paso-num">02</div>
+        <div class="paso-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.69 18.3 19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.47 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </div>
+        <h3>Contáctanos</h3>
+        <p>Escríbenos por WhatsApp o llámanos. Uno de nuestros asesores te atenderá de inmediato, sin presiones.</p>
+      </div>
+      <div class="paso-card">
+        <div class="paso-num">03</div>
+        <div class="paso-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </div>
+        <h3>Gestiona tu financiamiento</h3>
+        <p>Te conectamos con el banco ideal. Tasas competitivas, plazos flexibles y aprobación rápida.</p>
+      </div>
+      <div class="paso-card">
+        <div class="paso-num">04</div>
+        <div class="paso-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="8 12 11 15 16 10"/>
+          </svg>
+        </div>
+        <h3>Recibe tu vehículo</h3>
+        <p>Traspaso incluido, documentación completa. Tu nuevo vehículo listo para rodar desde el primer día.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -725,6 +808,32 @@
   </div>
 </div>
 
+
+<!-- PWA Install Banner -->
+<div class="pwa-banner" id="pwaBanner">
+  <div class="pwa-banner-inner">
+    <div class="pwa-banner-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.5" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="pwa-banner-text">
+      <strong>Agregar a pantalla principal</strong>
+      <span>Accede rápido a KingsDealer desde tu celular</span>
+    </div>
+    <button class="pwa-banner-install" id="pwaBannerInstall">Instalar</button>
+    <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Cerrar">✕</button>
+  </div>
+</div>
+
+<!-- PWA FAB — botón flotante cuando se cierra el banner -->
+<button class="pwa-fab" id="pwaFab" style="display:none" title="Agregar a pantalla principal">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <path d="M12 5v14M5 12l7 7 7-7"/>
+  </svg>
+  <span>Instalar app</span>
+</button>
+
 <div class="toast" id="toast"></div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -823,5 +932,140 @@ async function eliminarAnuncio(id) {
   loadAnuncios('', document.querySelector('.anuncio-filter-btn:last-child'));
   showToast('🗑 Anuncio eliminado', 'success');
 }
+
+// ── PWA Install Prompt ───────────────────────────
+(function() {
+  let deferredPrompt = null;
+  const banner     = document.getElementById('pwaBanner');
+  const fab        = document.getElementById('pwaFab');
+  const installBtn = document.getElementById('pwaBannerInstall');
+  const closeBtn   = document.getElementById('pwaBannerClose');
+
+  // Only show if not already installed / dismissed
+  const dismissed = sessionStorage.getItem('pwa-dismissed');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!dismissed && banner) {
+      setTimeout(() => banner.classList.add('show'), 2500);
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      banner.classList.remove('show');
+      if (outcome === 'accepted') showToast('✅ ¡App instalada!', 'success');
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      banner.classList.remove('show');
+      sessionStorage.setItem('pwa-dismissed', '1');
+      if (deferredPrompt) {
+        setTimeout(() => fab && (fab.style.display = 'flex'), 400);
+      }
+    });
+  }
+
+  if (fab) {
+    fab.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      fab.style.display = 'none';
+      if (outcome === 'accepted') showToast('✅ ¡App instalada!', 'success');
+    });
+  }
+
+  // iOS Safari — no beforeinstallprompt, show tip
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !dismissed) {
+    setTimeout(() => {
+      if (banner) {
+        const inst = document.getElementById('pwaBannerInstall');
+        if (inst) {
+          inst.textContent = 'Ver cómo';
+          inst.addEventListener('click', () => {
+            showToast('Toca el botón Compartir ↑ y luego "Agregar a inicio"', 'success');
+            banner.classList.remove('show');
+          }, { once: true });
+        }
+        banner.classList.add('show');
+      }
+    }, 2500);
+  }
+})();
+
+
+// ── PWA Install Prompt ───────────────────────────
+(function() {
+  let deferredPrompt = null;
+  const banner     = document.getElementById('pwaBanner');
+  const fab        = document.getElementById('pwaFab');
+  const installBtn = document.getElementById('pwaBannerInstall');
+  const closeBtn   = document.getElementById('pwaBannerClose');
+  const dismissed  = sessionStorage.getItem('pwa-dismissed');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!dismissed && banner) setTimeout(() => banner.classList.add('show'), 2500);
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      banner.classList.remove('show');
+      if (outcome === 'accepted') showToast('✅ ¡App instalada!', 'success');
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      banner.classList.remove('show');
+      sessionStorage.setItem('pwa-dismissed', '1');
+      if (deferredPrompt && fab) setTimeout(() => fab.style.display = 'flex', 400);
+    });
+  }
+
+  if (fab) {
+    fab.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      fab.style.display = 'none';
+      if (outcome === 'accepted') showToast('✅ ¡App instalada!', 'success');
+    });
+  }
+
+  // iOS Safari — no tiene beforeinstallprompt, mostrar instrucciones
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !dismissed && banner) {
+    setTimeout(() => {
+      const inst = document.getElementById('pwaBannerInstall');
+      if (inst) {
+        inst.textContent = 'Ver cómo';
+        inst.addEventListener('click', () => {
+          showToast('Toca Compartir ↑ → "Añadir a pantalla de inicio"', 'success');
+          banner.classList.remove('show');
+        }, { once: true });
+      }
+      banner.classList.add('show');
+    }, 2500);
+  }
+})();
+
 </script>
-{% endblock %}
