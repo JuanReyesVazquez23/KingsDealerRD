@@ -162,31 +162,24 @@
           </div>
 
           <!-- Foto -->
-          <div class="form-group full">
-            <label>
-              Foto principal
-              <span class="optional-tag">opcional</span>
-            </label>
-            <input type="file" id="vImagen" name="imagen" accept="image/*" data-crop data-ratio="1.6" />
-            <p class="fotos-hint">JPG, PNG o WEBP · máx. 8 MB</p>
-          </div>
-        </div>
+ <!-- Reemplazar el input de foto simple por esto: -->
+<div class="form-group">
+  <label>Foto principal</label>
+  <input type="file" id="fImagen" name="imagen" accept="image/*" />
+</div>
 
-        <div class="form-group full" style="margin-top:0">
-          <label>
-            Descripción
-            <span class="optional-tag">opcional</span>
-          </label>
-          <textarea id="vDescripcion" name="descripcion"
-                    placeholder="Kilometraje, extras, historial de mantenimiento…"
-                    rows="3" maxlength="500"></textarea>
-        </div>
+<div class="form-group full fotos-extra-group">
+  <label>Fotos adicionales <span class="optional-tag">opcional</span></label>
+  <input type="file" id="fImagenesExtra" name="imagenes_extra" accept="image/*" multiple />
+  <p class="fotos-hint">Puedes seleccionar varias veces para agregar más fotos</p>
+</div>
 
-        <div class="vstep-actions">
-          <button type="button" class="btn-ghost" onclick="vstepBack(2)">← Atrás</button>
-          <button type="button" class="btn-primary" onclick="vstepNext(2)">Continuar →</button>
-        </div>
-      </div>
+<!-- Y el form debe tener: -->
+<form id="anuncioForm" enctype="multipart/form-data">
+  ...
+  <button type="submit" id="anuncioSubmitBtn">Publicar mi vehículo</button>
+  <p id="anuncioError" class="form-error"></p>
+</form>
 
       <!-- PASO 3: Confirmación -->
       <div class="vender-step-content" id="vstep3" style="display:none">
