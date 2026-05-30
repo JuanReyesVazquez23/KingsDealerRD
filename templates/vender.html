@@ -161,14 +161,25 @@
             </div>
           </div>
 
-          <!-- Foto -->
+          <!-- Foto principal -->
           <div class="form-group full">
             <label>
               Foto principal
               <span class="optional-tag">opcional</span>
             </label>
             <input type="file" id="vImagen" name="imagen" accept="image/*" data-crop data-ratio="1.6" />
-            <p class="fotos-hint">JPG, PNG o WEBP · máx. 8 MB</p>
+            <p class="fotos-hint">JPG, PNG o WEBP · máx. 8 MB · se recortará automáticamente</p>
+          </div>
+
+          <!-- Fotos adicionales -->
+          <div class="form-group full fotos-extra-group">
+            <label>
+              Fotos adicionales
+              <span class="optional-tag">opcional</span>
+            </label>
+            <input type="file" id="fImagenesExtra" name="imagenes_extra"
+                   accept="image/*" multiple data-crop data-ratio="1.6" />
+            <p class="fotos-hint">Puedes agregar varias fotos — cada una se recortará</p>
           </div>
         </div>
 
@@ -356,6 +367,9 @@ async function submitAnuncio(e) {
   btn.textContent   = 'Enviando…';
   errEl.textContent = '';
 
+  // Sincronizar fotos recortadas pendientes al input antes de crear FormData
+  if (typeof syncFilesToInput === 'function') syncFilesToInput();
+
   try {
     const res  = await fetch('/api/anuncios', {
       method: 'POST',
@@ -389,5 +403,17 @@ document.getElementById('venderForm').addEventListener('change', clearFieldErr);
 function clearFieldErr(e) {
   e.target.classList.remove('field-error');
 }
+
+/* ── Inicializar cropper en esta página ── */
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof initCropInputs === 'function') initCropInputs();
+});
 </script>
+
+<!-- Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+<!-- App principal -->
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
 {% endblock %}

@@ -1214,6 +1214,17 @@ ul { list-style: none; }
   background: var(--off-white);
   border-color: var(--light-border);
 }
+/* Crop previews en fondo blanco */
+.vender-form-section .crop-previews {
+  margin-top: 10px;
+}
+.vender-form-section .crop-preview-item {
+  border-color: rgba(34,197,94,.4);
+  background: var(--off-white);
+}
+.vender-form-section .foto-preview-del {
+  background: rgba(0,0,0,.55);
+}
 
 /* Error visual en campo */
 .vender-form-section .field-error {

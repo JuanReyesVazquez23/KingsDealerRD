@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSecretTrigger();
   initFotoPreview();
+  initCropInputs();
 });
 
 // ══════════════════════════════════════════════════
@@ -573,6 +574,9 @@ async function submitVehicle(e) {
   if (errEl) errEl.textContent = '';
   if (btn)   { btn.disabled = true; btn.textContent = 'Guardando…'; }
 
+  // Sincronizar fotos pendientes antes de construir FormData
+  syncFilesToInput();
+
   const formData = new FormData(document.getElementById('vehicleForm'));
   formData.set('imagenes_extra_keep', JSON.stringify(keepImages));
 
@@ -695,58 +699,232 @@ function showToast(msg, type = '') {
 window.showToast = showToast;
 
 // ══════════════════════════════════════════════════
-// PREVIEW DE FOTOS NUEVAS — sin límite fijo
-// Aplica al panel admin Y al formulario de vendedor
-// (ambos usan el id "fImagenesExtra")
+// SISTEMA DE RECORTE DE IMÁGENES (Cropper.js)
+// Funciona igual para admin (index) y vendedor (/vender)
 // ══════════════════════════════════════════════════
 
-// Almacena los File objects seleccionados por el usuario (nuevas fotos)
-let pendingFiles = [];
+let cropperInstance   = null;   // instancia Cropper.js activa
+let cropCurrentInput  = null;   // input que disparó el crop
+let cropCurrentRatio  = 1.6;    // ratio activo
+let cropPendingFiles  = [];     // archivos ya recortados (fotos extra)
+let cropCallbackSingle = null;  // callback para foto principal
+
+// Asegura que el overlay de crop existe en el DOM
+function ensureCropOverlay() {
+  if (document.getElementById('cropOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id        = 'cropOverlay';
+  overlay.className = 'crop-overlay';
+  overlay.innerHTML = `
+    <div class="crop-box">
+      <div class="crop-header">
+        <span class="crop-title">Recortar imagen</span>
+        <div class="crop-ratio-btns">
+          <button type="button" class="crop-ratio-btn active" data-ratio="1.6"  onclick="setCropRatio(1.6)">16:10</button>
+          <button type="button" class="crop-ratio-btn"        data-ratio="1.78" onclick="setCropRatio(1.78)">16:9</button>
+          <button type="button" class="crop-ratio-btn"        data-ratio="1"    onclick="setCropRatio(1)">1:1</button>
+          <button type="button" class="crop-ratio-btn"        data-ratio="0"    onclick="setCropRatio(0)">Libre</button>
+        </div>
+      </div>
+      <div class="crop-canvas-wrap">
+        <img id="cropImage" src="" alt="Recortar" />
+      </div>
+      <p class="crop-hint">Arrastra para mover · Esquinas para redimensionar · Pinch para zoom</p>
+      <div class="crop-actions">
+        <button type="button" class="btn-ghost crop-cancel-btn" onclick="closeCropOverlay()">Cancelar</button>
+        <button type="button" class="btn-primary"              onclick="applyCrop()">✂ Aplicar recorte</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function openCropOverlay(file, ratio, onDone) {
+  ensureCropOverlay();
+  cropCurrentRatio   = ratio || 1.6;
+  cropCallbackSingle = onDone;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('cropImage');
+    img.src = e.target.result;
+
+    // Destruir instancia previa
+    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+
+    document.getElementById('cropOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Actualizar botones de ratio
+    document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
+      btn.classList.toggle('active', parseFloat(btn.dataset.ratio) === cropCurrentRatio);
+    });
+
+    // Inicializar Cropper.js
+    cropperInstance = new Cropper(img, {
+      aspectRatio:   cropCurrentRatio || NaN,
+      viewMode:      1,
+      dragMode:      'move',
+      autoCropArea:  0.85,
+      restore:       false,
+      guides:        true,
+      center:        true,
+      highlight:     true,
+      cropBoxMovable:    true,
+      cropBoxResizable:  true,
+      toggleDragModeOnDblclick: false,
+      background: false,
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+window.setCropRatio = function(ratio) {
+  cropCurrentRatio = ratio;
+  document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.ratio) === ratio);
+  });
+  if (cropperInstance) {
+    cropperInstance.setAspectRatio(ratio || NaN);
+  }
+};
+
+window.closeCropOverlay = function() {
+  document.getElementById('cropOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  // Limpiar el input para que no quede el archivo sin recortar
+  if (cropCurrentInput) cropCurrentInput.value = '';
+};
+
+window.applyCrop = function() {
+  if (!cropperInstance) return;
+  const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1200, imageSmoothingQuality: 'high' });
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+    if (typeof cropCallbackSingle === 'function') {
+      cropCallbackSingle(file, canvas.toDataURL('image/jpeg', 0.92));
+      cropCallbackSingle = null;
+    }
+
+    document.getElementById('cropOverlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  }, 'image/jpeg', 0.92);
+};
+
+// ── Inicializar cropper en todos los inputs con data-crop ──────────────
+function initCropInputs() {
+  document.querySelectorAll('input[type="file"][data-crop]').forEach(input => {
+    if (input._cropInited) return;
+    input._cropInited = true;
+    const ratio    = parseFloat(input.dataset.ratio) || 1.6;
+    const multiple = input.hasAttribute('multiple');
+
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files);
+      if (!files.length) return;
+      cropCurrentInput = input;
+      input.value = '';
+
+      if (multiple) {
+        // Procesar cada archivo en cola
+        processCropQueue(files, ratio, input);
+      } else {
+        // Foto única — principal
+        openCropOverlay(files[0], ratio, (croppedFile, dataUrl) => {
+          attachSingleCrop(input, croppedFile, dataUrl);
+        });
+      }
+    });
+  });
+}
+window.initCropInputs = initCropInputs;
+
+// ── Cola para múltiples fotos ──────────────────────────────────────────
+function processCropQueue(files, ratio, input) {
+  let idx = 0;
+
+  function cropNext() {
+    if (idx >= files.length) return;
+    const file = files[idx++];
+    openCropOverlay(file, ratio, (croppedFile, dataUrl) => {
+      addPendingFile(croppedFile, dataUrl, input);
+      cropNext(); // siguiente en la cola
+    });
+  }
+  cropNext();
+}
+
+// ── Adjuntar foto principal recortada al input ─────────────────────────
+function attachSingleCrop(input, file, dataUrl) {
+  // Inyectar el archivo recortado en el input via DataTransfer
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+  } catch(e) { /* fallback: no soportado */ }
+
+  // Preview debajo del input
+  let prev = input.parentNode.querySelector('.crop-previews');
+  if (!prev) {
+    prev = document.createElement('div');
+    prev.className = 'crop-previews';
+    input.after(prev);
+  }
+  prev.innerHTML = `
+    <div class="crop-preview-item">
+      <img src="${dataUrl}" alt="Foto principal" />
+      <span class="crop-preview-badge">Principal</span>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// PREVIEW DE FOTOS ADICIONALES (múltiples, con crop)
+// ══════════════════════════════════════════════════
+
+let pendingFiles = [];  // alias para compatibilidad con código existente
+
+function addPendingFile(file, dataUrl, input) {
+  pendingFiles.push(file);
+  renderPendingPreviews(input);
+}
 
 function initFotoPreview() {
-  // Aplica para el input del admin panel y del formulario de vendedor (mismo id)
+  // ya manejado por initCropInputs — se mantiene por compatibilidad
   const input = document.getElementById('fImagenesExtra');
   if (!input) return;
-
-  // Asegurarse de que el input tenga el atributo multiple
   input.setAttribute('multiple', '');
-
-  input.addEventListener('change', () => {
-    const newFiles = Array.from(input.files);
-    // Acumular — no reemplazar — para permitir selecciones múltiples en iOS/Safari
-    newFiles.forEach(f => { if (!pendingFiles.find(p => p.name === f.name && p.size === f.size)) pendingFiles.push(f); });
-    renderPendingPreviews();
-    // Limpiar input para permitir re-selección del mismo archivo
-    input.value = '';
-  });
 }
 window.initFotoPreview = initFotoPreview;
 
-function renderPendingPreviews() {
-  let previewCont = document.getElementById('fotoPendingPreview');
+function renderPendingPreviews(refInput) {
+  // Buscar el contenedor junto al input de fotos extra
+  const input = refInput || document.getElementById('fImagenesExtra');
+  if (!input) return;
+
+  let previewCont = input.parentNode.querySelector('#fotoPendingPreview');
   if (!previewCont) {
-    const input = document.getElementById('fImagenesExtra');
-    if (!input) return;
     previewCont = document.createElement('div');
-    previewCont.id = 'fotoPendingPreview';
+    previewCont.id        = 'fotoPendingPreview';
     previewCont.className = 'foto-preview-grid';
     previewCont.style.marginTop = '10px';
-    input.parentNode.insertBefore(previewCont, input.nextSibling);
+    input.after(previewCont);
   }
 
-  let countEl = document.getElementById('fotosCount');
+  let countEl = input.parentNode.querySelector('#fotosCount');
   if (!countEl) {
     countEl = document.createElement('p');
-    countEl.id = 'fotosCount';
+    countEl.id        = 'fotosCount';
     countEl.className = 'fotos-count';
-    const previewCont2 = document.getElementById('fotoPendingPreview');
-    if (previewCont2) previewCont2.parentNode.insertBefore(countEl, previewCont2.nextSibling);
+    previewCont.after(countEl);
   }
 
   previewCont.innerHTML = pendingFiles.map((f, i) => {
     const url = URL.createObjectURL(f);
     return `<div class="foto-preview-item">
-      <img src="${url}" alt="Nueva foto ${i+1}" />
+      <img src="${url}" alt="Foto ${i+1}" />
       <button type="button" class="foto-preview-del" onclick="removePendingFile(${i})" aria-label="Quitar foto">✕</button>
     </div>`;
   }).join('');
@@ -755,8 +933,7 @@ function renderPendingPreviews() {
   countEl.textContent = total > 0 ? `${total} foto${total !== 1 ? 's' : ''} en total` : '';
   countEl.className   = 'fotos-count';
 
-  // Sincronizar un DataTransfer con el input para que FormData envíe todos los archivos
-  syncFilesToInput();
+  syncFilesToInput(input);
 }
 
 function removePendingFile(idx) {
@@ -765,72 +942,12 @@ function removePendingFile(idx) {
 }
 window.removePendingFile = removePendingFile;
 
-function syncFilesToInput() {
-  // Rebuild the file input's FileList from pendingFiles using DataTransfer
+function syncFilesToInput(input) {
+  const el = input || document.getElementById('fImagenesExtra');
+  if (!el) return;
   try {
     const dt = new DataTransfer();
     pendingFiles.forEach(f => dt.items.add(f));
-    const input = document.getElementById('fImagenesExtra');
-    if (input) input.files = dt.files;
-  } catch (e) {
-    // DataTransfer not supported on older browsers — files sent normally
-  }
+    el.files = dt.files;
+  } catch(e) { /* fallback */ }
 }
-
-// ══════════════════════════════════════════════════
-// FORMULARIO DE VENDEDOR PARTICULAR (/vender)
-// Submit con soporte de múltiples fotos
-// ══════════════════════════════════════════════════
-
-function initVendedorForm() {
-  const form = document.getElementById('anuncioForm');
-  if (!form) return;
-
-  // Inicializar preview de fotos también en el form de vendedor
-  initFotoPreview();
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errEl = document.getElementById('anuncioError');
-    const btn   = document.getElementById('anuncioSubmitBtn');
-    if (errEl) errEl.textContent = '';
-    if (btn)   { btn.disabled = true; btn.textContent = 'Enviando…'; }
-
-    // Sincronizar archivos pendientes al input antes de crear FormData
-    syncFilesToInput();
-
-    const formData = new FormData(form);
-
-    try {
-      const res  = await fetch('/api/anuncios', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        if (errEl) errEl.textContent = data.error || 'Error al enviar el anuncio.';
-      } else {
-        // Redirigir o mostrar mensaje de éxito
-        const success = document.getElementById('anuncioSuccess');
-        if (success) {
-          form.style.display = 'none';
-          success.style.display = 'block';
-        } else {
-          showToast('✅ Anuncio enviado correctamente', 'success');
-          form.reset();
-          pendingFiles = [];
-          renderPendingPreviews();
-        }
-      }
-    } catch {
-      if (errEl) errEl.textContent = 'Error de conexión. Intenta de nuevo.';
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Publicar mi vehículo'; }
-    }
-  });
-}
-window.initVendedorForm = initVendedorForm;
-
-// Auto-inicializar el form de vendedor si existe en la página actual
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('anuncioForm')) {
-    initVendedorForm();
-  }
-});
