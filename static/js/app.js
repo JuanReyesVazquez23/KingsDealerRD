@@ -21,6 +21,10 @@ let sortAnio     = '';
 let filterMarca  = '';
 let keepImages   = [];
 
+// ── Show more / Show less — solo activo en filtro "Todos" ──
+const CARDS_INITIAL = 6;  // cuántas tarjetas mostrar al inicio
+let showingAll      = false;  // false = colapsado, true = expandido
+
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadVehicles();
@@ -65,7 +69,8 @@ function badgeMoneda(moneda) {
 
 // ── Render tarjetas ───────────────────────────────
 function renderVehicles(list) {
-  const grid = document.getElementById('vehiclesGrid');
+  const grid    = document.getElementById('vehiclesGrid');
+  const moreWrap = document.getElementById('showMoreWrap');
   if (!grid) return;
 
   if (!list.length) {
@@ -74,10 +79,30 @@ function renderVehicles(list) {
         <div class="es-icon">🚗</div>
         <p>No hay vehículos en esta categoría.</p>
       </div>`;
+    if (moreWrap) moreWrap.style.display = 'none';
     return;
   }
 
-  grid.innerHTML = list.map((v, i) => {
+  // Mostrar botón solo cuando el filtro es "Todos" y hay más de CARDS_INITIAL vehículos
+  const isTodos = !activeFilter;
+  const needsToggle = isTodos && list.length > CARDS_INITIAL;
+
+  // Si cambiamos de filtro o hay pocos, siempre colapsar
+  if (!needsToggle) showingAll = false;
+
+  // Determinar qué slice mostrar
+  const displayList = needsToggle && !showingAll ? list.slice(0, CARDS_INITIAL) : list;
+
+  // Actualizar botón
+  if (moreWrap) {
+    moreWrap.style.display = needsToggle ? 'flex' : 'none';
+    const label = document.getElementById('showMoreLabel');
+    const arrow = document.getElementById('showMoreArrow');
+    if (label) label.textContent = showingAll ? 'Ver menos vehículos' : 'Ver más vehículos';
+    if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+
+  grid.innerHTML = displayList.map((v, i) => {
     const moneda = v.moneda || 'DOP';
     const precioHtml = v.oferta && v.precio_oferta
       ? `<span class="price-original">${fmtMoneda(v.precio, moneda)}</span>
@@ -201,6 +226,19 @@ function clearSort() {
   updateClearBtn();
   renderVehicles(allVehicles);
 }
+
+// ── Mostrar más / Mostrar menos ───────────────────
+function toggleShowMore() {
+  showingAll = !showingAll;
+  // Re-aplicar sort para respetar orden actual y actualizar vista
+  applySort();
+  // Si colapsamos, hacer scroll suave al inicio del catálogo
+  if (!showingAll) {
+    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+// Exponer para uso desde onclick inline
+window.toggleShowMore = toggleShowMore;
 
 // ══════════════════════════════════════════════════
 // MODAL DETALLE — galería de hasta 7 fotos
