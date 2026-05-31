@@ -280,14 +280,14 @@
 </section>
 {% endif %}
 
-<!-- CATÁLOGO DEALER -->
+<!-- CATÁLOGO -->
 <section class="catalogo" id="catalogo">
   <div class="catalogo-inner">
 
     <div class="section-header">
       <p class="section-eyebrow">Nuestros vehículos</p>
-      <h2 class="section-title">Catálogo <span class="accent">KingsDealer</span></h2>
-      <p class="section-sub">Vehículos certificados directamente por el dealer</p>
+      <h2 class="section-title">Catálogo <span class="accent">Completo</span></h2>
+      <p class="section-sub">Vehículos certificados del dealer y publicaciones de vendedores particulares</p>
     </div>
 
     <!-- Filtros -->
@@ -298,6 +298,7 @@
       <button class="filter-btn" data-tipo="Vehículos Compactos">Vehículos Compactos</button>
       <button class="filter-btn" data-tipo="Pickup">Pickup</button>
       <button class="filter-btn" data-tipo="Camionetas Compactas">Camionetas Compactas</button>
+      <button class="filter-btn filter-btn-particular" data-tipo="__particulares__">Vendedores Particulares</button>
     </div><!-- /filters -->
 
     <!-- Sort bar -->
@@ -331,57 +332,29 @@
       </button>
     </div><!-- /sort-bar -->
 
-    <!-- Grid dealer -->
-    <div class="vehicles-grid" id="vehiclesGrid">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <p>Cargando vehículos…</p>
+    <!-- Wrapper que se vuelve negro cuando el filtro es "Particulares" -->
+    <div class="grid-wrap" id="gridWrap">
+      <!-- Grid -->
+      <div class="vehicles-grid" id="vehiclesGrid">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>Cargando vehículos…</p>
+        </div>
       </div>
-    </div>
 
-    <!-- Mostrar más / Mostrar menos — solo visible con filtro "Todos" -->
-    <div class="show-more-wrap" id="showMoreWrap" style="display:none">
-      <button class="btn-show-more" id="showMoreBtn" onclick="toggleShowMore()">
-        <span id="showMoreLabel">Ver más vehículos</span>
-        <svg class="show-more-arrow" id="showMoreArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-    </div>
+      <!-- Mostrar más / Mostrar menos -->
+      <div class="show-more-wrap" id="showMoreWrap" style="display:none">
+        <button class="btn-show-more" id="showMoreBtn" onclick="toggleShowMore()">
+          <span id="showMoreLabel">Ver más vehículos</span>
+          <svg class="show-more-arrow" id="showMoreArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+    </div><!-- /grid-wrap -->
 
   </div>
-</section><!-- /catalogo dealer -->
-
-<!-- SECCIÓN PARTICULARES -->
-<section class="particulares-section" id="particulares">
-  <div class="catalogo-inner">
-
-    <div class="section-header">
-      <p class="section-eyebrow particulares-eyebrow">Vendedores particulares</p>
-      <h2 class="section-title">Publicaciones <span class="accent-gold">Particulares</span></h2>
-      <p class="section-sub">Vehículos publicados directamente por sus dueños</p>
-    </div>
-
-    <!-- Grid particulares -->
-    <div class="vehicles-grid" id="particularesGrid">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <p>Cargando publicaciones…</p>
-      </div>
-    </div>
-
-    <!-- Mostrar más / Mostrar menos particulares -->
-    <div class="show-more-wrap" id="showMorePartWrap" style="display:none">
-      <button class="btn-show-more btn-show-more-part" id="showMorePartBtn" onclick="toggleShowMoreParticulares()">
-        <span id="showMorePartLabel">Ver más publicaciones</span>
-        <svg class="show-more-arrow" id="showMorePartArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-    </div>
-
-  </div>
-</section><!-- /particulares -->
+</section><!-- /catalogo -->
 
 <!-- VENDE TU AUTO -->
 <section class="vende-strip">

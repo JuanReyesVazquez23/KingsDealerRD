@@ -21,11 +21,13 @@ let sortAnio     = '';
 let filterMarca  = '';
 let keepImages   = [];
 
-// ── Show more / Show less — solo activo en filtro "Todos" ──
-const CARDS_INITIAL = 5;  // tarjetas visibles al inicio
+// ── Show more / Show less ─────────────────────────
+const CARDS_INITIAL = 5;
 let showingAll      = false;
-const PART_INITIAL  = 5;  // particulares visibles al inicio
-let showingAllPart  = false;
+
+// ── Filtro activo de particulares ─────────────────
+const FILTER_PART = '__particulares__';
+let isParticulares = false;
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,20 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadVehicles() {
   try {
-    const url = activeFilter
-      ? `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`
-      : '/api/vehiculos';
+    // Si el filtro es "particulares", traemos todos y filtramos en cliente
+    const url = (isParticulares || !activeFilter)
+      ? '/api/vehiculos'
+      : `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error();
     allVehicles = await res.json();
-
-    // Separar dealer de particulares
-    const dealer      = allVehicles.filter(v => v.origen !== 'cliente');
-    const particulares = allVehicles.filter(v => v.origen === 'cliente');
-
-    populateMarcaSelect(dealer);
+    populateMarcaSelect();
     applySort();
-    renderParticulares(particulares);
     updateStatCount(allVehicles.length);
   } catch {
     const grid = document.getElementById('vehiclesGrid');
@@ -80,106 +77,78 @@ function badgeMoneda(moneda) {
 function renderVehicles(list) {
   const grid     = document.getElementById('vehiclesGrid');
   const moreWrap = document.getElementById('showMoreWrap');
+  const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
 
-  // Sólo mostrar dealer en este grid
-  const dealerList = list.filter(v => v.origen !== 'cliente');
+  // Modo particulares: fondo oscuro
+  if (gridWrap) gridWrap.classList.toggle('grid-wrap--particulares', isParticulares);
 
-  if (!dealerList.length) {
+  const moreLabel = isParticulares ? 'publicaciones' : 'vehículos';
+
+  if (!list.length) {
     grid.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-state${isParticulares ? ' empty-state--dark' : ''}">
         <div class="es-icon">🚗</div>
-        <p>No hay vehículos en esta categoría.</p>
+        <p>${isParticulares ? 'No hay publicaciones de particulares.' : 'No hay vehículos en esta categoría.'}</p>
       </div>`;
     if (moreWrap) moreWrap.style.display = 'none';
     return;
   }
 
-  // Botón visible solo en filtro "Todos" con más de CARDS_INITIAL resultados
-  const isTodos     = !activeFilter;
-  const needsToggle = isTodos && dealerList.length > CARDS_INITIAL;
+  // Botón visible en "Todos" o "Particulares" si hay más de CARDS_INITIAL
+  const isTodos     = !activeFilter && !isParticulares;
+  const needsToggle = (isTodos || isParticulares) && list.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
 
-  const displayList = needsToggle && !showingAll ? dealerList.slice(0, CARDS_INITIAL) : dealerList;
+  const displayList = needsToggle && !showingAll ? list.slice(0, CARDS_INITIAL) : list;
 
   if (moreWrap) {
     moreWrap.style.display = needsToggle ? 'flex' : 'none';
     const label = document.getElementById('showMoreLabel');
     const arrow = document.getElementById('showMoreArrow');
-    if (label) label.textContent = showingAll ? 'Ver menos vehículos' : 'Ver más vehículos';
+    const btn   = document.getElementById('showMoreBtn');
+    if (label) label.textContent = showingAll ? `Ver menos ${moreLabel}` : `Ver más ${moreLabel}`;
     if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
+    if (btn)   btn.classList.toggle('btn-show-more--particular', isParticulares);
   }
 
-  grid.innerHTML = displayList.map((v, i) => buildVehicleCard(v, i)).join('');
-}
+  grid.innerHTML = displayList.map((v, i) => {
+    const moneda = v.moneda || 'DOP';
+    const precioHtml = v.oferta && v.precio_oferta
+      ? `<span class="price-original">${fmtMoneda(v.precio, moneda)}</span>
+         <span class="price-oferta">${fmtMoneda(v.precio_oferta, moneda)}</span>`
+      : fmtMoneda(v.precio, moneda);
 
-function renderParticulares(list) {
-  const grid     = document.getElementById('particularesGrid');
-  const moreWrap = document.getElementById('showMorePartWrap');
-  const section  = document.getElementById('particulares');
-  if (!grid) return;
+    const adminBtns = (typeof ROLE !== 'undefined' && ROLE === 'admin')
+      ? `<button class="card-btn card-btn-edit"   onclick="editVehicle(${v.id})">✏️</button>
+         <button class="card-btn card-btn-delete" onclick="deleteVehicle(${v.id})">🗑</button>`
+      : '';
 
-  // Ocultar sección entera si no hay particulares
-  if (section) section.style.display = list.length ? '' : 'none';
-
-  if (!list.length) {
-    if (moreWrap) moreWrap.style.display = 'none';
-    return;
-  }
-
-  const needsToggle = list.length > PART_INITIAL;
-  if (!needsToggle) showingAllPart = false;
-
-  const displayList = needsToggle && !showingAllPart ? list.slice(0, PART_INITIAL) : list;
-
-  if (moreWrap) {
-    moreWrap.style.display = needsToggle ? 'flex' : 'none';
-    const label = document.getElementById('showMorePartLabel');
-    const arrow = document.getElementById('showMorePartArrow');
-    if (label) label.textContent = showingAllPart ? 'Ver menos publicaciones' : 'Ver más publicaciones';
-    if (arrow) arrow.style.transform = showingAllPart ? 'rotate(180deg)' : 'rotate(0deg)';
-  }
-
-  grid.innerHTML = displayList.map((v, i) => buildVehicleCard(v, i)).join('');
-}
-
-function buildVehicleCard(v, i) {
-  const moneda = v.moneda || 'DOP';
-  const precioHtml = v.oferta && v.precio_oferta
-    ? `<span class="price-original">${fmtMoneda(v.precio, moneda)}</span>
-       <span class="price-oferta">${fmtMoneda(v.precio_oferta, moneda)}</span>`
-    : fmtMoneda(v.precio, moneda);
-
-  const adminBtns = (typeof ROLE !== 'undefined' && ROLE === 'admin')
-    ? `<button class="card-btn card-btn-edit"   onclick="editVehicle(${v.id})">✏️</button>
-       <button class="card-btn card-btn-delete" onclick="deleteVehicle(${v.id})">🗑</button>`
-    : '';
-
-  const esCliente = v.origen === 'cliente';
-  return `
-  <article class="vehicle-card${v.oferta ? ' card-en-oferta' : ''}${esCliente ? ' card-cliente' : ''}" style="animation-delay:${i * 50}ms">
-    ${v.oferta ? '<div class="card-oferta-ribbon">OFERTA</div>' : ''}
-    ${esCliente ? '<div class="card-cliente-ribbon">Particular</div>' : ''}
-    ${buildCardImage(v)}
-    <div class="card-body">
-      <div class="card-tipo-row">
-        <span class="card-tipo">${esc(v.tipo)}</span>
-        ${badgeMoneda(moneda)}
+    const esCliente = v.origen === 'cliente';
+    return `
+    <article class="vehicle-card${v.oferta ? ' card-en-oferta' : ''}${esCliente ? ' card-cliente' : ''}" style="animation-delay:${i * 50}ms">
+      ${v.oferta ? '<div class="card-oferta-ribbon">OFERTA</div>' : ''}
+      ${esCliente ? '<div class="card-cliente-ribbon">Particular</div>' : ''}
+      ${buildCardImage(v)}
+      <div class="card-body">
+        <div class="card-tipo-row">
+          <span class="card-tipo">${esc(v.tipo)}</span>
+          ${badgeMoneda(moneda)}
+        </div>
+        <div class="card-name">${esc(v.marca)} ${esc(v.modelo)}<span class="card-year">${v.anio}</span></div>
+        ${esCliente && v.condicion ? `<span class="card-condicion card-condicion-${v.condicion}">${v.condicion === 'nuevo' ? 'Nuevo' : 'Usado'}</span>` : ''}
+        <p class="card-desc">${esc(v.descripcion || 'Consulta disponibilidad y condiciones.')}</p>
       </div>
-      <div class="card-name">${esc(v.marca)} ${esc(v.modelo)}<span class="card-year">${v.anio}</span></div>
-      ${esCliente && v.condicion ? `<span class="card-condicion card-condicion-${v.condicion}">${v.condicion === 'nuevo' ? 'Nuevo' : 'Usado'}</span>` : ''}
-      <p class="card-desc">${esc(v.descripcion || 'Consulta disponibilidad y condiciones.')}</p>
-    </div>
-    <div class="card-footer">
-      <div class="card-price">${precioHtml}</div>
-      <div class="card-actions">
-        <button class="card-btn card-btn-detail" onclick="openModal(${v.id})">Ver</button>
-        ${!esCliente ? adminBtns : ''}
+      <div class="card-footer">
+        <div class="card-price">${precioHtml}</div>
+        <div class="card-actions">
+          <button class="card-btn card-btn-detail" onclick="openModal(${v.id})">Ver</button>
+          ${!esCliente ? adminBtns : ''}
+        </div>
       </div>
-    </div>
-  </article>`;
+    </article>`;
+  }).join('');
 }
-
 
 function buildCardImage(v) {
   if (v.imagen)
@@ -200,24 +169,34 @@ function initFilters() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeFilter = btn.dataset.tipo || '';
+
+      const tipo = btn.dataset.tipo || '';
+      isParticulares = (tipo === FILTER_PART);
+      activeFilter   = isParticulares ? '' : tipo;
+      showingAll     = false;
+
       sortPrecio = ''; sortAnio = ''; filterMarca = '';
       ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.value = ''; el.classList.remove('active-filter'); }
       });
+
+      // Ocultar sort bar en modo particulares (no aplica)
+      const sortBar = document.getElementById('sortBar');
+      if (sortBar) sortBar.style.display = isParticulares ? 'none' : '';
+
       updateClearBtn();
       loadVehicles();
     });
   });
 }
 
-function populateMarcaSelect(dealerList) {
+function populateMarcaSelect() {
   const sel = document.getElementById('filterMarca');
   if (!sel) return;
-  const list    = dealerList || allVehicles.filter(v => v.origen !== 'cliente');
   const current = sel.value;
-  const marcas  = [...new Set(list.map(v => v.marca))].sort();
+  const dealer  = allVehicles.filter(v => v.origen !== 'cliente');
+  const marcas  = [...new Set(dealer.map(v => v.marca))].sort();
   sel.innerHTML  = '<option value="">Todas</option>' +
     marcas.map(m => `<option value="${esc(m)}"${m === current ? ' selected' : ''}>${esc(m)}</option>`).join('');
 }
@@ -227,6 +206,13 @@ function initSortBar() {
 }
 
 function applySort() {
+  // En modo particulares solo mostramos clientes, sin sort
+  if (isParticulares) {
+    const part = allVehicles.filter(v => v.origen === 'cliente');
+    renderVehicles(part);
+    return;
+  }
+
   sortPrecio  = document.getElementById('sortPrecio')?.value  || '';
   sortAnio    = document.getElementById('sortAnio')?.value    || '';
   filterMarca = document.getElementById('filterMarca')?.value || '';
@@ -237,7 +223,7 @@ function applySort() {
   });
   updateClearBtn();
 
-  // Solo operar sobre vehículos del dealer
+  // Solo dealer en los filtros normales
   let list = allVehicles.filter(v => v.origen !== 'cliente');
   if (filterMarca) list = list.filter(v => v.marca === filterMarca);
 
@@ -270,7 +256,7 @@ function clearSort() {
   renderVehicles(allVehicles.filter(v => v.origen !== 'cliente'));
 }
 
-// ── Mostrar más / Mostrar menos (dealer) ─────────
+// ── Mostrar más / Mostrar menos ───────────────────
 function toggleShowMore() {
   showingAll = !showingAll;
   applySort();
@@ -279,17 +265,6 @@ function toggleShowMore() {
   }
 }
 window.toggleShowMore = toggleShowMore;
-
-// ── Mostrar más / Mostrar menos (particulares) ───
-function toggleShowMoreParticulares() {
-  showingAllPart = !showingAllPart;
-  const particulares = allVehicles.filter(v => v.origen === 'cliente');
-  renderParticulares(particulares);
-  if (!showingAllPart) {
-    document.getElementById('particulares')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-window.toggleShowMoreParticulares = toggleShowMoreParticulares;
 
 // ══════════════════════════════════════════════════
 // MODAL DETALLE — galería de hasta 7 fotos

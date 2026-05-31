@@ -1519,59 +1519,6 @@ ul { list-style: none; }
 .vende-strip-text p  { font-size: .95rem; }
 
 /* ═══════════════════════════════════════════════
-   SECCIÓN VENDEDORES PARTICULARES
-═══════════════════════════════════════════════ */
-
-.particulares-section {
-  padding: 72px 24px 80px;
-  background: var(--dark);
-  border-top: 1px solid rgba(255,255,255,.06);
-}
-
-.particulares-section .section-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.particulares-eyebrow {
-  color: #f59e0b !important;
-}
-
-.accent-gold {
-  color: #f59e0b;
-  position: relative;
-}
-
-.particulares-section .section-title,
-.particulares-section .section-sub {
-  color: var(--white);
-}
-
-.particulares-section .section-sub {
-  color: var(--text-inv-2);
-}
-
-.particulares-section .vehicles-grid {
-  /* hereda el grid del catálogo */
-}
-
-/* Botón ver más de particulares — versión oscura */
-.btn-show-more-part {
-  background: rgba(255,255,255,.05) !important;
-  border-color: rgba(255,255,255,.15) !important;
-  color: var(--white) !important;
-}
-.btn-show-more-part:hover {
-  border-color: #f59e0b !important;
-  color: #f59e0b !important;
-  box-shadow: 0 4px 18px rgba(245,158,11,.18) !important;
-}
-
-@media (min-width: 900px) {
-  .particulares-section { padding: 96px 24px 100px; }
-}
-
-/* ═══════════════════════════════════════════════
    TARJETAS DE ANUNCIOS DE CLIENTES (particulares)
    Se diferencian visualmente del catálogo del dealer
 ═══════════════════════════════════════════════ */
@@ -2301,5 +2248,59 @@ input[type="file"][data-crop] + .fotos-hint {
   .crop-actions .btn-primary,
   .crop-actions .crop-cancel-btn { width: 100%; justify-content: center; }
   .crop-ratio-btn { padding: 4px 10px; font-size: .7rem; }
+}
+
+
+/* ═══════════════════════════════════════════════
+   FILTRO VENDEDORES PARTICULARES
+═══════════════════════════════════════════════ */
+
+/* Botón especial en filtros */
+.filter-btn-particular {
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+.filter-btn-particular:hover,
+.filter-btn-particular.active {
+  background: #f59e0b !important;
+  border-color: #f59e0b !important;
+  color: #000 !important;
+  box-shadow: 0 4px 18px rgba(245,158,11,.30);
+}
+
+/* Wrapper del grid que se vuelve negro */
+.grid-wrap {
+  border-radius: 16px;
+  overflow: hidden;
+  transition: background .3s ease, padding .3s ease;
+}
+.grid-wrap--particulares {
+  background: #0d0d0d;
+  padding: 32px 24px 40px;
+  border: 1.5px solid rgba(245,158,11,.25);
+  box-shadow: 0 8px 40px rgba(0,0,0,.4);
+}
+.grid-wrap--particulares .vehicles-grid {
+  /* Las cards ya son oscuras por card-cliente */
+}
+
+/* Empty state en modo oscuro */
+.empty-state--dark {
+  color: rgba(255,255,255,.55);
+}
+.empty-state--dark .es-icon {
+  filter: brightness(.8);
+}
+
+/* Botón mostrar más en modo particular — amarillo */
+.btn-show-more--particular {
+  background: transparent !important;
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+}
+.btn-show-more--particular:hover {
+  background: rgba(245,158,11,.10) !important;
+  box-shadow: 0 4px 18px rgba(245,158,11,.25) !important;
+  transform: translateY(-1px);
 }
 
