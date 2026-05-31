@@ -139,11 +139,17 @@ def init_db():
                 moneda      TEXT    NOT NULL DEFAULT 'DOP',
                 condicion   TEXT    NOT NULL DEFAULT 'usado',
                 descripcion TEXT,
-                imagen      TEXT,
-                estado      TEXT    NOT NULL DEFAULT 'pendiente',
-                creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                imagen         TEXT,
+                imagenes_extra TEXT,
+                estado         TEXT    NOT NULL DEFAULT 'pendiente',
+                creado_en      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        # Migración: agregar columna si la tabla ya existía sin ella
+        try:
+            conn.execute('ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT')
+        except Exception:
+            pass
 
 
 if DATABASE_URL:
@@ -286,7 +292,7 @@ def api_vehiculos():
     q_clientes = (
         'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
         'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
-        'NULL as imagenes_extra, nombre as nombre_vendedor, '
+        'imagenes_extra, nombre as nombre_vendedor, '
         'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
         'condicion, \'cliente\' as origen '
         'FROM anuncios_clientes WHERE estado = \'aprobado\''
@@ -477,11 +483,12 @@ def api_crear_anuncio():
         return jsonify({'error': 'Completa todos los campos requeridos.'}), 400
 
     imagen = guardar_imagen(request.files.get('imagen'))
+    imagenes_extra = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
 
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
-            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen)
+            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
+            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen, json.dumps(imagenes_extra))
         )
         generated_id = cur.fetchone()['id']
     return jsonify({'ok': True, 'id': generated_id}), 201
@@ -518,9 +525,14 @@ def api_actualizar_anuncio(aid):
 @admin_required
 def api_eliminar_anuncio(aid):
     with get_db() as conn:
-        row = conn.execute('SELECT imagen FROM anuncios_clientes WHERE id=?', (aid,)).fetchone()
+        row = conn.execute('SELECT imagen, imagenes_extra FROM anuncios_clientes WHERE id=?', (aid,)).fetchone()
         if not row: return jsonify({'error': 'No encontrado.'}), 404
         borrar_imagen(row['imagen'])
+        try:
+            extras = json.loads(row['imagenes_extra'] or '[]')
+            for n in extras: borrar_imagen(n)
+        except Exception:
+            pass
         conn.execute('DELETE FROM anuncios_clientes WHERE id=?', (aid,))
     return jsonify({'ok': True})
 
