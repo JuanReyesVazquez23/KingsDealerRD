@@ -22,8 +22,10 @@ let filterMarca  = '';
 let keepImages   = [];
 
 // ── Show more / Show less — solo activo en filtro "Todos" ──
-const CARDS_INITIAL = 6;  // tarjetas visibles al inicio
+const CARDS_INITIAL = 5;  // tarjetas visibles al inicio
 let showingAll      = false;
+const PART_INITIAL  = 5;  // particulares visibles al inicio
+let showingAllPart  = false;
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSecretTrigger();
   initFotoPreview();
-  initCropInputs();
 });
 
 // ══════════════════════════════════════════════════
@@ -49,8 +50,14 @@ async function loadVehicles() {
     const res = await fetch(url);
     if (!res.ok) throw new Error();
     allVehicles = await res.json();
-    populateMarcaSelect();
+
+    // Separar dealer de particulares
+    const dealer      = allVehicles.filter(v => v.origen !== 'cliente');
+    const particulares = allVehicles.filter(v => v.origen === 'cliente');
+
+    populateMarcaSelect(dealer);
     applySort();
+    renderParticulares(particulares);
     updateStatCount(allVehicles.length);
   } catch {
     const grid = document.getElementById('vehiclesGrid');
@@ -75,7 +82,10 @@ function renderVehicles(list) {
   const moreWrap = document.getElementById('showMoreWrap');
   if (!grid) return;
 
-  if (!list.length) {
+  // Sólo mostrar dealer en este grid
+  const dealerList = list.filter(v => v.origen !== 'cliente');
+
+  if (!dealerList.length) {
     grid.innerHTML = `
       <div class="empty-state">
         <div class="es-icon">🚗</div>
@@ -87,10 +97,10 @@ function renderVehicles(list) {
 
   // Botón visible solo en filtro "Todos" con más de CARDS_INITIAL resultados
   const isTodos     = !activeFilter;
-  const needsToggle = isTodos && list.length > CARDS_INITIAL;
+  const needsToggle = isTodos && dealerList.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
 
-  const displayList = needsToggle && !showingAll ? list.slice(0, CARDS_INITIAL) : list;
+  const displayList = needsToggle && !showingAll ? dealerList.slice(0, CARDS_INITIAL) : dealerList;
 
   if (moreWrap) {
     moreWrap.style.display = needsToggle ? 'flex' : 'none';
@@ -100,43 +110,76 @@ function renderVehicles(list) {
     if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
   }
 
-  grid.innerHTML = displayList.map((v, i) => {
-    const moneda = v.moneda || 'DOP';
-    const precioHtml = v.oferta && v.precio_oferta
-      ? `<span class="price-original">${fmtMoneda(v.precio, moneda)}</span>
-         <span class="price-oferta">${fmtMoneda(v.precio_oferta, moneda)}</span>`
-      : fmtMoneda(v.precio, moneda);
-
-    const adminBtns = (typeof ROLE !== 'undefined' && ROLE === 'admin')
-      ? `<button class="card-btn card-btn-edit"   onclick="editVehicle(${v.id})">✏️</button>
-         <button class="card-btn card-btn-delete" onclick="deleteVehicle(${v.id})">🗑</button>`
-      : '';
-
-    const esCliente = v.origen === 'cliente';
-    return `
-    <article class="vehicle-card${v.oferta ? ' card-en-oferta' : ''}${esCliente ? ' card-cliente' : ''}" style="animation-delay:${i * 50}ms">
-      ${v.oferta ? '<div class="card-oferta-ribbon">OFERTA</div>' : ''}
-      ${esCliente ? '<div class="card-cliente-ribbon">Particular</div>' : ''}
-      ${buildCardImage(v)}
-      <div class="card-body">
-        <div class="card-tipo-row">
-          <span class="card-tipo">${esc(v.tipo)}</span>
-          ${badgeMoneda(moneda)}
-        </div>
-        <div class="card-name">${esc(v.marca)} ${esc(v.modelo)}<span class="card-year">${v.anio}</span></div>
-        ${esCliente && v.condicion ? `<span class="card-condicion card-condicion-${v.condicion}">${v.condicion === 'nuevo' ? 'Nuevo' : 'Usado'}</span>` : ''}
-        <p class="card-desc">${esc(v.descripcion || 'Consulta disponibilidad y condiciones.')}</p>
-      </div>
-      <div class="card-footer">
-        <div class="card-price">${precioHtml}</div>
-        <div class="card-actions">
-          <button class="card-btn card-btn-detail" onclick="openModal(${v.id})">Ver</button>
-          ${!esCliente ? adminBtns : ''}
-        </div>
-      </div>
-    </article>`;
-  }).join('');
+  grid.innerHTML = displayList.map((v, i) => buildVehicleCard(v, i)).join('');
 }
+
+function renderParticulares(list) {
+  const grid     = document.getElementById('particularesGrid');
+  const moreWrap = document.getElementById('showMorePartWrap');
+  const section  = document.getElementById('particulares');
+  if (!grid) return;
+
+  // Ocultar sección entera si no hay particulares
+  if (section) section.style.display = list.length ? '' : 'none';
+
+  if (!list.length) {
+    if (moreWrap) moreWrap.style.display = 'none';
+    return;
+  }
+
+  const needsToggle = list.length > PART_INITIAL;
+  if (!needsToggle) showingAllPart = false;
+
+  const displayList = needsToggle && !showingAllPart ? list.slice(0, PART_INITIAL) : list;
+
+  if (moreWrap) {
+    moreWrap.style.display = needsToggle ? 'flex' : 'none';
+    const label = document.getElementById('showMorePartLabel');
+    const arrow = document.getElementById('showMorePartArrow');
+    if (label) label.textContent = showingAllPart ? 'Ver menos publicaciones' : 'Ver más publicaciones';
+    if (arrow) arrow.style.transform = showingAllPart ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+
+  grid.innerHTML = displayList.map((v, i) => buildVehicleCard(v, i)).join('');
+}
+
+function buildVehicleCard(v, i) {
+  const moneda = v.moneda || 'DOP';
+  const precioHtml = v.oferta && v.precio_oferta
+    ? `<span class="price-original">${fmtMoneda(v.precio, moneda)}</span>
+       <span class="price-oferta">${fmtMoneda(v.precio_oferta, moneda)}</span>`
+    : fmtMoneda(v.precio, moneda);
+
+  const adminBtns = (typeof ROLE !== 'undefined' && ROLE === 'admin')
+    ? `<button class="card-btn card-btn-edit"   onclick="editVehicle(${v.id})">✏️</button>
+       <button class="card-btn card-btn-delete" onclick="deleteVehicle(${v.id})">🗑</button>`
+    : '';
+
+  const esCliente = v.origen === 'cliente';
+  return `
+  <article class="vehicle-card${v.oferta ? ' card-en-oferta' : ''}${esCliente ? ' card-cliente' : ''}" style="animation-delay:${i * 50}ms">
+    ${v.oferta ? '<div class="card-oferta-ribbon">OFERTA</div>' : ''}
+    ${esCliente ? '<div class="card-cliente-ribbon">Particular</div>' : ''}
+    ${buildCardImage(v)}
+    <div class="card-body">
+      <div class="card-tipo-row">
+        <span class="card-tipo">${esc(v.tipo)}</span>
+        ${badgeMoneda(moneda)}
+      </div>
+      <div class="card-name">${esc(v.marca)} ${esc(v.modelo)}<span class="card-year">${v.anio}</span></div>
+      ${esCliente && v.condicion ? `<span class="card-condicion card-condicion-${v.condicion}">${v.condicion === 'nuevo' ? 'Nuevo' : 'Usado'}</span>` : ''}
+      <p class="card-desc">${esc(v.descripcion || 'Consulta disponibilidad y condiciones.')}</p>
+    </div>
+    <div class="card-footer">
+      <div class="card-price">${precioHtml}</div>
+      <div class="card-actions">
+        <button class="card-btn card-btn-detail" onclick="openModal(${v.id})">Ver</button>
+        ${!esCliente ? adminBtns : ''}
+      </div>
+    </div>
+  </article>`;
+}
+
 
 function buildCardImage(v) {
   if (v.imagen)
@@ -169,11 +212,12 @@ function initFilters() {
   });
 }
 
-function populateMarcaSelect() {
+function populateMarcaSelect(dealerList) {
   const sel = document.getElementById('filterMarca');
   if (!sel) return;
+  const list    = dealerList || allVehicles.filter(v => v.origen !== 'cliente');
   const current = sel.value;
-  const marcas  = [...new Set(allVehicles.map(v => v.marca))].sort();
+  const marcas  = [...new Set(list.map(v => v.marca))].sort();
   sel.innerHTML  = '<option value="">Todas</option>' +
     marcas.map(m => `<option value="${esc(m)}"${m === current ? ' selected' : ''}>${esc(m)}</option>`).join('');
 }
@@ -193,11 +237,12 @@ function applySort() {
   });
   updateClearBtn();
 
-  let list = [...allVehicles];
+  // Solo operar sobre vehículos del dealer
+  let list = allVehicles.filter(v => v.origen !== 'cliente');
   if (filterMarca) list = list.filter(v => v.marca === filterMarca);
 
   if (sortPrecio) {
-    const F = 60; // factor DOP≈USD referencial solo para ordenamiento
+    const F = 60;
     list.sort((a, b) => {
       const pa = (a.oferta && a.precio_oferta ? a.precio_oferta : a.precio) * (a.moneda === 'USD' ? F : 1);
       const pb = (b.oferta && b.precio_oferta ? b.precio_oferta : b.precio) * (b.moneda === 'USD' ? F : 1);
@@ -222,18 +267,29 @@ function clearSort() {
     if (el) { el.value = ''; el.classList.remove('active-filter'); }
   });
   updateClearBtn();
-  renderVehicles(allVehicles);
+  renderVehicles(allVehicles.filter(v => v.origen !== 'cliente'));
 }
 
-// ── Mostrar más / Mostrar menos ───────────────────
+// ── Mostrar más / Mostrar menos (dealer) ─────────
 function toggleShowMore() {
   showingAll = !showingAll;
-  applySort(); // re-renderiza respetando filtros y orden actuales
+  applySort();
   if (!showingAll) {
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 window.toggleShowMore = toggleShowMore;
+
+// ── Mostrar más / Mostrar menos (particulares) ───
+function toggleShowMoreParticulares() {
+  showingAllPart = !showingAllPart;
+  const particulares = allVehicles.filter(v => v.origen === 'cliente');
+  renderParticulares(particulares);
+  if (!showingAllPart) {
+    document.getElementById('particulares')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+window.toggleShowMoreParticulares = toggleShowMoreParticulares;
 
 // ══════════════════════════════════════════════════
 // MODAL DETALLE — galería de hasta 7 fotos
@@ -574,9 +630,6 @@ async function submitVehicle(e) {
   if (errEl) errEl.textContent = '';
   if (btn)   { btn.disabled = true; btn.textContent = 'Guardando…'; }
 
-  // Sincronizar fotos pendientes antes de construir FormData
-  syncFilesToInput();
-
   const formData = new FormData(document.getElementById('vehicleForm'));
   formData.set('imagenes_extra_keep', JSON.stringify(keepImages));
 
@@ -699,232 +752,58 @@ function showToast(msg, type = '') {
 window.showToast = showToast;
 
 // ══════════════════════════════════════════════════
-// SISTEMA DE RECORTE DE IMÁGENES (Cropper.js)
-// Funciona igual para admin (index) y vendedor (/vender)
+// PREVIEW DE FOTOS NUEVAS — sin límite fijo
+// Aplica al panel admin Y al formulario de vendedor
+// (ambos usan el id "fImagenesExtra")
 // ══════════════════════════════════════════════════
 
-let cropperInstance   = null;   // instancia Cropper.js activa
-let cropCurrentInput  = null;   // input que disparó el crop
-let cropCurrentRatio  = 1.6;    // ratio activo
-let cropPendingFiles  = [];     // archivos ya recortados (fotos extra)
-let cropCallbackSingle = null;  // callback para foto principal
-
-// Asegura que el overlay de crop existe en el DOM
-function ensureCropOverlay() {
-  if (document.getElementById('cropOverlay')) return;
-  const overlay = document.createElement('div');
-  overlay.id        = 'cropOverlay';
-  overlay.className = 'crop-overlay';
-  overlay.innerHTML = `
-    <div class="crop-box">
-      <div class="crop-header">
-        <span class="crop-title">Recortar imagen</span>
-        <div class="crop-ratio-btns">
-          <button type="button" class="crop-ratio-btn active" data-ratio="1.6"  onclick="setCropRatio(1.6)">16:10</button>
-          <button type="button" class="crop-ratio-btn"        data-ratio="1.78" onclick="setCropRatio(1.78)">16:9</button>
-          <button type="button" class="crop-ratio-btn"        data-ratio="1"    onclick="setCropRatio(1)">1:1</button>
-          <button type="button" class="crop-ratio-btn"        data-ratio="0"    onclick="setCropRatio(0)">Libre</button>
-        </div>
-      </div>
-      <div class="crop-canvas-wrap">
-        <img id="cropImage" src="" alt="Recortar" />
-      </div>
-      <p class="crop-hint">Arrastra para mover · Esquinas para redimensionar · Pinch para zoom</p>
-      <div class="crop-actions">
-        <button type="button" class="btn-ghost crop-cancel-btn" onclick="closeCropOverlay()">Cancelar</button>
-        <button type="button" class="btn-primary"              onclick="applyCrop()">✂ Aplicar recorte</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-function openCropOverlay(file, ratio, onDone) {
-  ensureCropOverlay();
-  cropCurrentRatio   = ratio || 1.6;
-  cropCallbackSingle = onDone;
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('cropImage');
-    img.src = e.target.result;
-
-    // Destruir instancia previa
-    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-
-    document.getElementById('cropOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
-
-    // Actualizar botones de ratio
-    document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
-      btn.classList.toggle('active', parseFloat(btn.dataset.ratio) === cropCurrentRatio);
-    });
-
-    // Inicializar Cropper.js
-    cropperInstance = new Cropper(img, {
-      aspectRatio:   cropCurrentRatio || NaN,
-      viewMode:      1,
-      dragMode:      'move',
-      autoCropArea:  0.85,
-      restore:       false,
-      guides:        true,
-      center:        true,
-      highlight:     true,
-      cropBoxMovable:    true,
-      cropBoxResizable:  true,
-      toggleDragModeOnDblclick: false,
-      background: false,
-    });
-  };
-  reader.readAsDataURL(file);
-}
-
-window.setCropRatio = function(ratio) {
-  cropCurrentRatio = ratio;
-  document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
-    btn.classList.toggle('active', parseFloat(btn.dataset.ratio) === ratio);
-  });
-  if (cropperInstance) {
-    cropperInstance.setAspectRatio(ratio || NaN);
-  }
-};
-
-window.closeCropOverlay = function() {
-  document.getElementById('cropOverlay')?.classList.remove('open');
-  document.body.style.overflow = '';
-  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-  // Limpiar el input para que no quede el archivo sin recortar
-  if (cropCurrentInput) cropCurrentInput.value = '';
-};
-
-window.applyCrop = function() {
-  if (!cropperInstance) return;
-  const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1200, imageSmoothingQuality: 'high' });
-  canvas.toBlob(blob => {
-    if (!blob) return;
-    const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-
-    if (typeof cropCallbackSingle === 'function') {
-      cropCallbackSingle(file, canvas.toDataURL('image/jpeg', 0.92));
-      cropCallbackSingle = null;
-    }
-
-    document.getElementById('cropOverlay')?.classList.remove('open');
-    document.body.style.overflow = '';
-    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
-  }, 'image/jpeg', 0.92);
-};
-
-// ── Inicializar cropper en todos los inputs con data-crop ──────────────
-function initCropInputs() {
-  document.querySelectorAll('input[type="file"][data-crop]').forEach(input => {
-    if (input._cropInited) return;
-    input._cropInited = true;
-    const ratio    = parseFloat(input.dataset.ratio) || 1.6;
-    const multiple = input.hasAttribute('multiple');
-
-    input.addEventListener('change', () => {
-      const files = Array.from(input.files);
-      if (!files.length) return;
-      cropCurrentInput = input;
-      input.value = '';
-
-      if (multiple) {
-        // Procesar cada archivo en cola
-        processCropQueue(files, ratio, input);
-      } else {
-        // Foto única — principal
-        openCropOverlay(files[0], ratio, (croppedFile, dataUrl) => {
-          attachSingleCrop(input, croppedFile, dataUrl);
-        });
-      }
-    });
-  });
-}
-window.initCropInputs = initCropInputs;
-
-// ── Cola para múltiples fotos ──────────────────────────────────────────
-function processCropQueue(files, ratio, input) {
-  let idx = 0;
-
-  function cropNext() {
-    if (idx >= files.length) return;
-    const file = files[idx++];
-    openCropOverlay(file, ratio, (croppedFile, dataUrl) => {
-      addPendingFile(croppedFile, dataUrl, input);
-      cropNext(); // siguiente en la cola
-    });
-  }
-  cropNext();
-}
-
-// ── Adjuntar foto principal recortada al input ─────────────────────────
-function attachSingleCrop(input, file, dataUrl) {
-  // Inyectar el archivo recortado en el input via DataTransfer
-  try {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-  } catch(e) { /* fallback: no soportado */ }
-
-  // Preview debajo del input
-  let prev = input.parentNode.querySelector('.crop-previews');
-  if (!prev) {
-    prev = document.createElement('div');
-    prev.className = 'crop-previews';
-    input.after(prev);
-  }
-  prev.innerHTML = `
-    <div class="crop-preview-item">
-      <img src="${dataUrl}" alt="Foto principal" />
-      <span class="crop-preview-badge">Principal</span>
-    </div>`;
-}
-
-// ══════════════════════════════════════════════════
-// PREVIEW DE FOTOS ADICIONALES (múltiples, con crop)
-// ══════════════════════════════════════════════════
-
-let pendingFiles = [];  // alias para compatibilidad con código existente
-
-function addPendingFile(file, dataUrl, input) {
-  pendingFiles.push(file);
-  renderPendingPreviews(input);
-}
+// Almacena los File objects seleccionados por el usuario (nuevas fotos)
+let pendingFiles = [];
 
 function initFotoPreview() {
-  // ya manejado por initCropInputs — se mantiene por compatibilidad
+  // Aplica para el input del admin panel y del formulario de vendedor (mismo id)
   const input = document.getElementById('fImagenesExtra');
   if (!input) return;
+
+  // Asegurarse de que el input tenga el atributo multiple
   input.setAttribute('multiple', '');
+
+  input.addEventListener('change', () => {
+    const newFiles = Array.from(input.files);
+    // Acumular — no reemplazar — para permitir selecciones múltiples en iOS/Safari
+    newFiles.forEach(f => { if (!pendingFiles.find(p => p.name === f.name && p.size === f.size)) pendingFiles.push(f); });
+    renderPendingPreviews();
+    // Limpiar input para permitir re-selección del mismo archivo
+    input.value = '';
+  });
 }
 window.initFotoPreview = initFotoPreview;
 
-function renderPendingPreviews(refInput) {
-  // Buscar el contenedor junto al input de fotos extra
-  const input = refInput || document.getElementById('fImagenesExtra');
-  if (!input) return;
-
-  let previewCont = input.parentNode.querySelector('#fotoPendingPreview');
+function renderPendingPreviews() {
+  let previewCont = document.getElementById('fotoPendingPreview');
   if (!previewCont) {
+    const input = document.getElementById('fImagenesExtra');
+    if (!input) return;
     previewCont = document.createElement('div');
-    previewCont.id        = 'fotoPendingPreview';
+    previewCont.id = 'fotoPendingPreview';
     previewCont.className = 'foto-preview-grid';
     previewCont.style.marginTop = '10px';
-    input.after(previewCont);
+    input.parentNode.insertBefore(previewCont, input.nextSibling);
   }
 
-  let countEl = input.parentNode.querySelector('#fotosCount');
+  let countEl = document.getElementById('fotosCount');
   if (!countEl) {
     countEl = document.createElement('p');
-    countEl.id        = 'fotosCount';
+    countEl.id = 'fotosCount';
     countEl.className = 'fotos-count';
-    previewCont.after(countEl);
+    const previewCont2 = document.getElementById('fotoPendingPreview');
+    if (previewCont2) previewCont2.parentNode.insertBefore(countEl, previewCont2.nextSibling);
   }
 
   previewCont.innerHTML = pendingFiles.map((f, i) => {
     const url = URL.createObjectURL(f);
     return `<div class="foto-preview-item">
-      <img src="${url}" alt="Foto ${i+1}" />
+      <img src="${url}" alt="Nueva foto ${i+1}" />
       <button type="button" class="foto-preview-del" onclick="removePendingFile(${i})" aria-label="Quitar foto">✕</button>
     </div>`;
   }).join('');
@@ -933,7 +812,8 @@ function renderPendingPreviews(refInput) {
   countEl.textContent = total > 0 ? `${total} foto${total !== 1 ? 's' : ''} en total` : '';
   countEl.className   = 'fotos-count';
 
-  syncFilesToInput(input);
+  // Sincronizar un DataTransfer con el input para que FormData envíe todos los archivos
+  syncFilesToInput();
 }
 
 function removePendingFile(idx) {
@@ -942,12 +822,72 @@ function removePendingFile(idx) {
 }
 window.removePendingFile = removePendingFile;
 
-function syncFilesToInput(input) {
-  const el = input || document.getElementById('fImagenesExtra');
-  if (!el) return;
+function syncFilesToInput() {
+  // Rebuild the file input's FileList from pendingFiles using DataTransfer
   try {
     const dt = new DataTransfer();
     pendingFiles.forEach(f => dt.items.add(f));
-    el.files = dt.files;
-  } catch(e) { /* fallback */ }
+    const input = document.getElementById('fImagenesExtra');
+    if (input) input.files = dt.files;
+  } catch (e) {
+    // DataTransfer not supported on older browsers — files sent normally
+  }
 }
+
+// ══════════════════════════════════════════════════
+// FORMULARIO DE VENDEDOR PARTICULAR (/vender)
+// Submit con soporte de múltiples fotos
+// ══════════════════════════════════════════════════
+
+function initVendedorForm() {
+  const form = document.getElementById('anuncioForm');
+  if (!form) return;
+
+  // Inicializar preview de fotos también en el form de vendedor
+  initFotoPreview();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('anuncioError');
+    const btn   = document.getElementById('anuncioSubmitBtn');
+    if (errEl) errEl.textContent = '';
+    if (btn)   { btn.disabled = true; btn.textContent = 'Enviando…'; }
+
+    // Sincronizar archivos pendientes al input antes de crear FormData
+    syncFilesToInput();
+
+    const formData = new FormData(form);
+
+    try {
+      const res  = await fetch('/api/anuncios', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        if (errEl) errEl.textContent = data.error || 'Error al enviar el anuncio.';
+      } else {
+        // Redirigir o mostrar mensaje de éxito
+        const success = document.getElementById('anuncioSuccess');
+        if (success) {
+          form.style.display = 'none';
+          success.style.display = 'block';
+        } else {
+          showToast('✅ Anuncio enviado correctamente', 'success');
+          form.reset();
+          pendingFiles = [];
+          renderPendingPreviews();
+        }
+      }
+    } catch {
+      if (errEl) errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Publicar mi vehículo'; }
+    }
+  });
+}
+window.initVendedorForm = initVendedorForm;
+
+// Auto-inicializar el form de vendedor si existe en la página actual
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('anuncioForm')) {
+    initVendedorForm();
+  }
+});

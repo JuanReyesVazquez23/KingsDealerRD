@@ -1214,17 +1214,6 @@ ul { list-style: none; }
   background: var(--off-white);
   border-color: var(--light-border);
 }
-/* Crop previews en fondo blanco */
-.vender-form-section .crop-previews {
-  margin-top: 10px;
-}
-.vender-form-section .crop-preview-item {
-  border-color: rgba(34,197,94,.4);
-  background: var(--off-white);
-}
-.vender-form-section .foto-preview-del {
-  background: rgba(0,0,0,.55);
-}
 
 /* Error visual en campo */
 .vender-form-section .field-error {
@@ -1528,6 +1517,59 @@ ul { list-style: none; }
 .vende-strip-inner { padding: 60px 28px; }
 .vende-strip-text h2 { font-size: clamp(1.7rem, 4vw, 2.6rem); margin-bottom: 8px; }
 .vende-strip-text p  { font-size: .95rem; }
+
+/* ═══════════════════════════════════════════════
+   SECCIÓN VENDEDORES PARTICULARES
+═══════════════════════════════════════════════ */
+
+.particulares-section {
+  padding: 72px 24px 80px;
+  background: var(--dark);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.particulares-section .section-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.particulares-eyebrow {
+  color: #f59e0b !important;
+}
+
+.accent-gold {
+  color: #f59e0b;
+  position: relative;
+}
+
+.particulares-section .section-title,
+.particulares-section .section-sub {
+  color: var(--white);
+}
+
+.particulares-section .section-sub {
+  color: var(--text-inv-2);
+}
+
+.particulares-section .vehicles-grid {
+  /* hereda el grid del catálogo */
+}
+
+/* Botón ver más de particulares — versión oscura */
+.btn-show-more-part {
+  background: rgba(255,255,255,.05) !important;
+  border-color: rgba(255,255,255,.15) !important;
+  color: var(--white) !important;
+}
+.btn-show-more-part:hover {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  box-shadow: 0 4px 18px rgba(245,158,11,.18) !important;
+}
+
+@media (min-width: 900px) {
+  .particulares-section { padding: 96px 24px 100px; }
+}
 
 /* ═══════════════════════════════════════════════
    TARJETAS DE ANUNCIOS DE CLIENTES (particulares)

@@ -280,14 +280,14 @@
 </section>
 {% endif %}
 
-<!-- CATÁLOGO -->
+<!-- CATÁLOGO DEALER -->
 <section class="catalogo" id="catalogo">
   <div class="catalogo-inner">
 
     <div class="section-header">
       <p class="section-eyebrow">Nuestros vehículos</p>
-      <h2 class="section-title">Catálogo <span class="accent">Completo</span></h2>
-      <p class="section-sub">Vehículos certificados del dealer y publicaciones de vendedores particulares</p>
+      <h2 class="section-title">Catálogo <span class="accent">KingsDealer</span></h2>
+      <p class="section-sub">Vehículos certificados directamente por el dealer</p>
     </div>
 
     <!-- Filtros -->
@@ -331,7 +331,7 @@
       </button>
     </div><!-- /sort-bar -->
 
-    <!-- Grid -->
+    <!-- Grid dealer -->
     <div class="vehicles-grid" id="vehiclesGrid">
       <div class="loading-spinner">
         <div class="spinner"></div>
@@ -350,7 +350,38 @@
     </div>
 
   </div>
-</section><!-- /catalogo -->
+</section><!-- /catalogo dealer -->
+
+<!-- SECCIÓN PARTICULARES -->
+<section class="particulares-section" id="particulares">
+  <div class="catalogo-inner">
+
+    <div class="section-header">
+      <p class="section-eyebrow particulares-eyebrow">Vendedores particulares</p>
+      <h2 class="section-title">Publicaciones <span class="accent-gold">Particulares</span></h2>
+      <p class="section-sub">Vehículos publicados directamente por sus dueños</p>
+    </div>
+
+    <!-- Grid particulares -->
+    <div class="vehicles-grid" id="particularesGrid">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Cargando publicaciones…</p>
+      </div>
+    </div>
+
+    <!-- Mostrar más / Mostrar menos particulares -->
+    <div class="show-more-wrap" id="showMorePartWrap" style="display:none">
+      <button class="btn-show-more btn-show-more-part" id="showMorePartBtn" onclick="toggleShowMoreParticulares()">
+        <span id="showMorePartLabel">Ver más publicaciones</span>
+        <svg class="show-more-arrow" id="showMorePartArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+</section><!-- /particulares -->
 
 <!-- VENDE TU AUTO -->
 <section class="vende-strip">
@@ -836,8 +867,6 @@
 
 <div class="toast" id="toast"></div>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
 function setMoneda(v) {
