@@ -2252,53 +2252,40 @@ input[type="file"][data-crop] + .fotos-hint {
 
 
 /* ═══════════════════════════════════════════════════
-   FILTRO VENDEDORES PARTICULARES
+   FILTRO + MODO VENDEDORES PARTICULARES
 ═══════════════════════════════════════════════════ */
-
-/* Botón especial en la barra de filtros */
 .filter-btn-part {
   border-color: #f59e0b;
   color:        #92400e;
   background:   #fffbeb;
 }
-.filter-btn-part:hover {
-  background:   #f59e0b;
-  border-color: #f59e0b;
-  color:         #000;
-  box-shadow:    0 4px 18px rgba(245,158,11,.35);
-}
+.filter-btn-part:hover,
 .filter-btn-part.active {
   background:   #f59e0b !important;
   border-color: #f59e0b !important;
-  color:         #000 !important;
+  color:         #000   !important;
   box-shadow:    0 4px 18px rgba(245,158,11,.35);
 }
 
-/* Wrapper del grid (transición suave al modo oscuro) */
-.grid-wrap {
-  border-radius: 16px;
-  transition:    background .35s ease, padding .35s ease, border-color .35s ease;
-}
+/* Wrapper del grid */
+.grid-wrap { border-radius: 16px; transition: background .3s, padding .3s, border .3s; }
 
-/* Modo Vendedores Particulares — fondo negro + borde dorado */
-.grid-wrap--particulares {
-  background:    #0a0a0a;
-  padding:       28px 20px 36px;
-  border:        2px solid rgba(245,158,11,.4);
-  box-shadow:    0 8px 48px rgba(0,0,0,.55),
-                 inset 0 0 0 1px rgba(245,158,11,.08);
+/* Fondo negro + borde dorado cuando es modo particulares */
+.grid-wrap--part {
+  background: #0a0a0a;
+  padding:    28px 20px 36px;
+  border:     2px solid rgba(245,158,11,.45);
+  box-shadow: 0 8px 48px rgba(0,0,0,.6);
 }
 
 /* Empty state sobre fondo oscuro */
-.empty-state--dark {
-  color: rgba(255,255,255,.5);
-}
+.empty-state--dark { color: rgba(255,255,255,.5); }
 
-/* Botón "Ver más" en modo particulares — amarillo */
+/* Botón "Ver más" en modo particulares */
 .btn-show-more--part {
-  background:   transparent !important;
-  border-color: #f59e0b !important;
-  color:        #f59e0b !important;
+  background:   transparent   !important;
+  border-color: #f59e0b       !important;
+  color:        #f59e0b       !important;
 }
 .btn-show-more--part:hover {
   background:  rgba(245,158,11,.1) !important;

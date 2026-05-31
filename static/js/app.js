@@ -24,7 +24,8 @@ let keepImages   = [];
 // ── Show more / Show less ────────────────────────
 const CARDS_INITIAL = 5;
 let showingAll      = false;
-let isParticulares  = false;   // true cuando el filtro activo es 'Vendedores Particulares'
+let isParticulares  = false;
+let allParticulares = [];   // cache de vendedores particulares
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -42,10 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════════════
 
 async function loadVehicles() {
+  const grid = document.getElementById('vehiclesGrid');
   try {
-    // Siempre traemos todos. Si hay filtro de tipo (dealer), el backend filtra.
-    // Para particulares filtramos en JS para no contaminar el endpoint.
-    const url = (activeFilter && !isParticulares)
+    if (isParticulares) {
+      // Endpoint dedicado — solo clientes aprobados, nunca mezclados
+      if (!allParticulares.length) {
+        const res = await fetch('/api/particulares');
+        if (!res.ok) throw new Error();
+        allParticulares = await res.json();
+      }
+      renderVehicles(allParticulares);
+      return;
+    }
+    // Endpoint del dealer — nunca incluye clientes
+    const url = activeFilter
       ? `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`
       : '/api/vehiculos';
     const res = await fetch(url);
@@ -55,7 +66,6 @@ async function loadVehicles() {
     applySort();
     updateStatCount(allVehicles.length);
   } catch {
-    const grid = document.getElementById('vehiclesGrid');
     if (grid) grid.innerHTML =
       '<div class="empty-state"><div class="es-icon">⚠️</div><p>No se pudo cargar el catálogo. Verifica tu conexión.</p></div>';
   }
@@ -78,8 +88,8 @@ function renderVehicles(list) {
   const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
 
-  // Fondo oscuro + borde amarillo cuando es modo particulares
-  if (gridWrap) gridWrap.classList.toggle('grid-wrap--particulares', isParticulares);
+  // Modo particulares: fondo negro + borde dorado
+  if (gridWrap) gridWrap.classList.toggle('grid-wrap--part', isParticulares);
 
   if (!list.length) {
     grid.innerHTML = `
@@ -91,7 +101,7 @@ function renderVehicles(list) {
     return;
   }
 
-  // Botón visible en 'Todos' y en 'Particulares' cuando hay más de CARDS_INITIAL
+  // Mostrar más: activo en 'Todos' y en 'Particulares'
   const isTodos     = !activeFilter && !isParticulares;
   const needsToggle = (isTodos || isParticulares) && list.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
@@ -103,8 +113,8 @@ function renderVehicles(list) {
     const label = document.getElementById('showMoreLabel');
     const arrow = document.getElementById('showMoreArrow');
     const btn   = document.getElementById('showMoreBtn');
-    const texto = isParticulares ? 'publicaciones' : 'vehículos';
-    if (label) label.textContent = showingAll ? `Ver menos ${texto}` : `Ver más ${texto}`;
+    const txt   = isParticulares ? 'publicaciones' : 'vehículos';
+    if (label) label.textContent   = showingAll ? `Ver menos ${txt}` : `Ver más ${txt}`;
     if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
     if (btn)   btn.classList.toggle('btn-show-more--part', isParticulares);
   }
@@ -172,16 +182,15 @@ function initFilters() {
       activeFilter   = isParticulares ? '' : tipo;
       showingAll     = false;
 
-      // Resetear sorts
       sortPrecio = ''; sortAnio = ''; filterMarca = '';
       ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.value = ''; el.classList.remove('active-filter'); }
       });
 
-      // Ocultar sort bar en modo particulares — no aplica
-      const sortBar = document.getElementById('sortBar');
-      if (sortBar) sortBar.style.display = isParticulares ? 'none' : '';
+      // Ocultar sort bar en modo particulares
+      const sb = document.getElementById('sortBar');
+      if (sb) sb.style.display = isParticulares ? 'none' : '';
 
       updateClearBtn();
       loadVehicles();
@@ -193,7 +202,7 @@ function populateMarcaSelect() {
   const sel = document.getElementById('filterMarca');
   if (!sel) return;
   const current = sel.value;
-  const marcas  = [...new Set(allVehicles.filter(v => v.origen !== 'cliente').map(v => v.marca))].sort();
+  const marcas  = [...new Set(allVehicles.map(v => v.marca))].sort();
   sel.innerHTML  = '<option value="">Todas</option>' +
     marcas.map(m => `<option value="${esc(m)}"${m === current ? ' selected' : ''}>${esc(m)}</option>`).join('');
 }
@@ -203,9 +212,8 @@ function initSortBar() {
 }
 
 function applySort() {
-  // Modo particulares: solo mostrar clientes, sin sort ni marca
   if (isParticulares) {
-    renderVehicles(allVehicles.filter(v => v.origen === 'cliente'));
+    renderVehicles(allParticulares);
     return;
   }
 
@@ -219,8 +227,7 @@ function applySort() {
   });
   updateClearBtn();
 
-  // Solo vehículos del dealer en el catálogo normal
-  let list = allVehicles.filter(v => v.origen !== 'cliente');
+  let list = [...allVehicles];
   if (filterMarca) list = list.filter(v => v.marca === filterMarca);
 
   if (sortPrecio) {
@@ -249,13 +256,17 @@ function clearSort() {
     if (el) { el.value = ''; el.classList.remove('active-filter'); }
   });
   updateClearBtn();
-  renderVehicles(allVehicles.filter(v => v.origen !== 'cliente'));
+  renderVehicles(allVehicles);
 }
 
 // ── Mostrar más / Mostrar menos ───────────────────
 function toggleShowMore() {
   showingAll = !showingAll;
-  applySort(); // re-renderiza respetando filtros y orden actuales
+  if (isParticulares) {
+    renderVehicles(allParticulares);
+  } else {
+    applySort();
+  }
   if (!showingAll) {
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

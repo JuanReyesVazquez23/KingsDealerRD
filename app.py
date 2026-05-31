@@ -145,7 +145,6 @@ def init_db():
                 creado_en      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        # Migración: añadir columna si la tabla ya existe sin ella
         try:
             conn.execute('ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT')
         except Exception:
@@ -289,25 +288,12 @@ def api_vehiculos():
         q_dealer += ' WHERE tipo = ?'
         params.append(tipo)
 
-    q_clientes = (
-        'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
-        'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
-        'imagenes_extra, nombre as nombre_vendedor, '
-        'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
-        'condicion, \'cliente\' as origen '
-        'FROM anuncios_clientes WHERE estado = \'aprobado\''
-    )
-    if tipo:
-        q_clientes += ' AND tipo = ?'
-        params.append(tipo)
-
-    full_query = (
-        f'SELECT * FROM ({q_dealer} UNION ALL {q_clientes}) AS resultado '
-        f'ORDER BY creado_en DESC'
-    )
-
+    # Solo vehículos del dealer — los particulares tienen su propio endpoint
     with get_db() as conn:
-        rows = conn.execute(full_query, params).fetchall()
+        rows = conn.execute(
+            q_dealer + (' ORDER BY creado_en DESC' if not tipo else ' ORDER BY creado_en DESC'),
+            params
+        ).fetchall()
 
     result = []
     for r in rows:
@@ -315,6 +301,34 @@ def api_vehiculos():
         raw = d.get('imagenes_extra')
         try:    d['imagenes_extra'] = json.loads(raw) if raw else []
         except: d['imagenes_extra'] = []
+        d['origen'] = 'dealer'
+        result.append(d)
+
+    return jsonify(result)
+
+
+@app.route('/api/particulares', methods=['GET'])
+def api_particulares():
+    """Devuelve solo los anuncios de vendedores particulares aprobados."""
+    with get_db() as conn:
+        rows = conn.execute(
+            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
+            'imagenes_extra, creado_en, moneda, condicion, '
+            'nombre as nombre_vendedor, telefono as telefono_vendedor, '
+            'whatsapp as whatsapp_vendedor '
+            'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
+            ('aprobado',)
+        ).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        raw = d.get('imagenes_extra')
+        try:    d['imagenes_extra'] = json.loads(raw) if raw else []
+        except: d['imagenes_extra'] = []
+        d['origen'] = 'cliente'
+        d['oferta'] = 0
+        d['precio_oferta'] = None
         result.append(d)
 
     return jsonify(result)
@@ -482,8 +496,8 @@ def api_crear_anuncio():
     if not all([nombre, telefono, marca, modelo, tipo, 1980 <= anio <= 2030, precio > 0]):
         return jsonify({'error': 'Completa todos los campos requeridos.'}), 400
 
-    imagen = guardar_imagen(request.files.get('imagen'))
-    extras = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
+    imagen  = guardar_imagen(request.files.get('imagen'))
+    extras  = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
 
     with get_db() as conn:
         cur = conn.execute(
