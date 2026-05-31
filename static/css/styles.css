@@ -2251,56 +2251,57 @@ input[type="file"][data-crop] + .fotos-hint {
 }
 
 
-/* ═══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════
    FILTRO VENDEDORES PARTICULARES
-═══════════════════════════════════════════════ */
+═══════════════════════════════════════════════════ */
 
-/* Botón especial en filtros */
-.filter-btn-particular {
-  border-color: #f59e0b !important;
-  color: #92400e !important;
+/* Botón especial en la barra de filtros */
+.filter-btn-part {
+  border-color: #f59e0b;
+  color:        #92400e;
+  background:   #fffbeb;
 }
-.filter-btn-particular:hover,
-.filter-btn-particular.active {
-  background: #f59e0b !important;
+.filter-btn-part:hover {
+  background:   #f59e0b;
+  border-color: #f59e0b;
+  color:         #000;
+  box-shadow:    0 4px 18px rgba(245,158,11,.35);
+}
+.filter-btn-part.active {
+  background:   #f59e0b !important;
   border-color: #f59e0b !important;
-  color: #000 !important;
-  box-shadow: 0 4px 18px rgba(245,158,11,.30);
+  color:         #000 !important;
+  box-shadow:    0 4px 18px rgba(245,158,11,.35);
 }
 
-/* Wrapper del grid que se vuelve negro */
+/* Wrapper del grid (transición suave al modo oscuro) */
 .grid-wrap {
   border-radius: 16px;
-  overflow: hidden;
-  transition: background .3s ease, padding .3s ease;
+  transition:    background .35s ease, padding .35s ease, border-color .35s ease;
 }
+
+/* Modo Vendedores Particulares — fondo negro + borde dorado */
 .grid-wrap--particulares {
-  background: #0d0d0d;
-  padding: 32px 24px 40px;
-  border: 1.5px solid rgba(245,158,11,.25);
-  box-shadow: 0 8px 40px rgba(0,0,0,.4);
-}
-.grid-wrap--particulares .vehicles-grid {
-  /* Las cards ya son oscuras por card-cliente */
+  background:    #0a0a0a;
+  padding:       28px 20px 36px;
+  border:        2px solid rgba(245,158,11,.4);
+  box-shadow:    0 8px 48px rgba(0,0,0,.55),
+                 inset 0 0 0 1px rgba(245,158,11,.08);
 }
 
-/* Empty state en modo oscuro */
+/* Empty state sobre fondo oscuro */
 .empty-state--dark {
-  color: rgba(255,255,255,.55);
-}
-.empty-state--dark .es-icon {
-  filter: brightness(.8);
+  color: rgba(255,255,255,.5);
 }
 
-/* Botón mostrar más en modo particular — amarillo */
-.btn-show-more--particular {
-  background: transparent !important;
+/* Botón "Ver más" en modo particulares — amarillo */
+.btn-show-more--part {
+  background:   transparent !important;
   border-color: #f59e0b !important;
-  color: #f59e0b !important;
+  color:        #f59e0b !important;
 }
-.btn-show-more--particular:hover {
-  background: rgba(245,158,11,.10) !important;
-  box-shadow: 0 4px 18px rgba(245,158,11,.25) !important;
-  transform: translateY(-1px);
+.btn-show-more--part:hover {
+  background:  rgba(245,158,11,.1) !important;
+  box-shadow:  0 4px 20px rgba(245,158,11,.3) !important;
+  transform:   translateY(-1px);
 }
-
