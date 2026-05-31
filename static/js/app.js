@@ -24,8 +24,8 @@ let keepImages   = [];
 // ── Show more / Show less ────────────────────────
 const CARDS_INITIAL = 5;
 let showingAll      = false;
-let isParticulares  = false;
-let allParticulares = [];   // cache de vendedores particulares
+let isParticulares  = false;   // true cuando filtro activo es Vendedores Particulares
+let allParticulares = [];       // cache — se carga desde /api/particulares
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,16 +46,14 @@ async function loadVehicles() {
   const grid = document.getElementById('vehiclesGrid');
   try {
     if (isParticulares) {
-      // Endpoint dedicado — solo clientes aprobados, nunca mezclados
-      if (!allParticulares.length) {
-        const res = await fetch('/api/particulares');
-        if (!res.ok) throw new Error();
-        allParticulares = await res.json();
-      }
+      // Endpoint dedicado — solo clientes, nunca mezclados con el dealer
+      const res = await fetch('/api/particulares');
+      if (!res.ok) throw new Error();
+      allParticulares = await res.json();
       renderVehicles(allParticulares);
       return;
     }
-    // Endpoint del dealer — nunca incluye clientes
+    // Endpoint del dealer
     const url = activeFilter
       ? `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`
       : '/api/vehiculos';
@@ -88,7 +86,7 @@ function renderVehicles(list) {
   const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
 
-  // Modo particulares: fondo negro + borde dorado
+  // Fondo oscuro + borde dorado en modo particulares
   if (gridWrap) gridWrap.classList.toggle('grid-wrap--part', isParticulares);
 
   if (!list.length) {
@@ -101,7 +99,7 @@ function renderVehicles(list) {
     return;
   }
 
-  // Mostrar más: activo en 'Todos' y en 'Particulares'
+  // Mostrar más: activo en Todos Y en Particulares
   const isTodos     = !activeFilter && !isParticulares;
   const needsToggle = (isTodos || isParticulares) && list.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
@@ -114,7 +112,7 @@ function renderVehicles(list) {
     const arrow = document.getElementById('showMoreArrow');
     const btn   = document.getElementById('showMoreBtn');
     const txt   = isParticulares ? 'publicaciones' : 'vehículos';
-    if (label) label.textContent   = showingAll ? `Ver menos ${txt}` : `Ver más ${txt}`;
+    if (label) label.textContent    = showingAll ? `Ver menos ${txt}` : `Ver más ${txt}`;
     if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
     if (btn)   btn.classList.toggle('btn-show-more--part', isParticulares);
   }
@@ -187,12 +185,12 @@ function initFilters() {
         const el = document.getElementById(id);
         if (el) { el.value = ''; el.classList.remove('active-filter'); }
       });
+      updateClearBtn();
 
-      // Ocultar sort bar en modo particulares
+      // Ocultar sort bar cuando estamos en modo particulares
       const sb = document.getElementById('sortBar');
       if (sb) sb.style.display = isParticulares ? 'none' : '';
 
-      updateClearBtn();
       loadVehicles();
     });
   });

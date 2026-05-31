@@ -142,13 +142,22 @@ def init_db():
                 imagen         TEXT,
                 imagenes_extra TEXT,
                 estado         TEXT    NOT NULL DEFAULT 'pendiente',
-                creado_en      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        try:
-            conn.execute('ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT')
-        except Exception:
-            pass
+        # Migración automática: añade columna si la BD ya existe sin ella
+        conn.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='anuncios_clientes' AND column_name='imagenes_extra'
+                ) THEN
+                    ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT;
+                END IF;
+            END
+            $$;
+        """)
 
 
 if DATABASE_URL:
@@ -288,12 +297,25 @@ def api_vehiculos():
         q_dealer += ' WHERE tipo = ?'
         params.append(tipo)
 
-    # Solo vehículos del dealer — los particulares tienen su propio endpoint
+    q_clientes = (
+        'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
+        'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
+        'imagenes_extra, nombre as nombre_vendedor, '
+        'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
+        'condicion, \'cliente\' as origen '
+        'FROM anuncios_clientes WHERE estado = \'aprobado\''
+    )
+    if tipo:
+        q_clientes += ' AND tipo = ?'
+        params.append(tipo)
+
+    full_query = (
+        f'SELECT * FROM ({q_dealer} UNION ALL {q_clientes}) AS resultado '
+        f'ORDER BY creado_en DESC'
+    )
+
     with get_db() as conn:
-        rows = conn.execute(
-            q_dealer + (' ORDER BY creado_en DESC' if not tipo else ' ORDER BY creado_en DESC'),
-            params
-        ).fetchall()
+        rows = conn.execute(full_query, params).fetchall()
 
     result = []
     for r in rows:
@@ -301,7 +323,6 @@ def api_vehiculos():
         raw = d.get('imagenes_extra')
         try:    d['imagenes_extra'] = json.loads(raw) if raw else []
         except: d['imagenes_extra'] = []
-        d['origen'] = 'dealer'
         result.append(d)
 
     return jsonify(result)
@@ -309,13 +330,14 @@ def api_vehiculos():
 
 @app.route('/api/particulares', methods=['GET'])
 def api_particulares():
-    """Devuelve solo los anuncios de vendedores particulares aprobados."""
+    """Solo anuncios de clientes aprobados — nunca mezclados con el dealer."""
     with get_db() as conn:
         rows = conn.execute(
             'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
-            'imagenes_extra, creado_en, moneda, condicion, '
-            'nombre as nombre_vendedor, telefono as telefono_vendedor, '
-            'whatsapp as whatsapp_vendedor '
+            'imagenes_extra, moneda, condicion, creado_en, '
+            'nombre AS nombre_vendedor, '
+            'telefono AS telefono_vendedor, '
+            'whatsapp AS whatsapp_vendedor '
             'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
             ('aprobado',)
         ).fetchall()
@@ -326,11 +348,10 @@ def api_particulares():
         raw = d.get('imagenes_extra')
         try:    d['imagenes_extra'] = json.loads(raw) if raw else []
         except: d['imagenes_extra'] = []
-        d['origen'] = 'cliente'
-        d['oferta'] = 0
+        d['origen']       = 'cliente'
+        d['oferta']       = 0
         d['precio_oferta'] = None
         result.append(d)
-
     return jsonify(result)
 
 
