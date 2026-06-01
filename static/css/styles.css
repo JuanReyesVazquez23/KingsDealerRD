@@ -2251,36 +2251,24 @@ input[type="file"][data-crop] + .fotos-hint {
 }
 
 
-/* ═══════════════════════════════════════════════════
-   VENDEDORES PARTICULARES — filtro + modo
-═══════════════════════════════════════════════════ */
-.filter-btn-part {
-  border-color: #f59e0b;
-  color: #92400e;
-  background: #fffbeb;
+/* ═══ VENDEDORES PARTICULARES ═══════════════════ */
+.filter-btn-part { border-color:#f59e0b; color:#92400e; background:#fffbeb; }
+.filter-btn-part:hover, .filter-btn-part.active {
+  background:#f59e0b!important; border-color:#f59e0b!important;
+  color:#000!important; box-shadow:0 4px 18px rgba(245,158,11,.35);
 }
-.filter-btn-part:hover,
-.filter-btn-part.active {
-  background: #f59e0b !important;
-  border-color: #f59e0b !important;
-  color: #000 !important;
-  box-shadow: 0 4px 18px rgba(245,158,11,.35);
-}
-.grid-wrap { border-radius: 16px; transition: background .3s, padding .3s, border .3s; }
+.grid-wrap { border-radius:16px; transition:background .3s,padding .3s,border .3s; }
 .grid-wrap--part {
-  background: #0a0a0a;
-  padding: 28px 20px 36px;
-  border: 2px solid rgba(245,158,11,.45);
-  box-shadow: 0 8px 48px rgba(0,0,0,.6);
+  background:#0a0a0a; padding:28px 20px 36px;
+  border:2px solid rgba(245,158,11,.45);
+  box-shadow:0 8px 48px rgba(0,0,0,.6);
 }
-.empty-state--dark { color: rgba(255,255,255,.5); }
+.empty-state--dark { color:rgba(255,255,255,.5); }
 .btn-show-more--part {
-  background: transparent !important;
-  border-color: #f59e0b !important;
-  color: #f59e0b !important;
+  background:transparent!important; border-color:#f59e0b!important; color:#f59e0b!important;
 }
 .btn-show-more--part:hover {
-  background: rgba(245,158,11,.1) !important;
-  box-shadow: 0 4px 20px rgba(245,158,11,.3) !important;
-  transform: translateY(-1px);
+  background:rgba(245,158,11,.1)!important;
+  box-shadow:0 4px 20px rgba(245,158,11,.3)!important;
+  transform:translateY(-1px);
 }

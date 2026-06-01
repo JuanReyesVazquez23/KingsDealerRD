@@ -22,10 +22,10 @@ let filterMarca  = '';
 let keepImages   = [];
 
 // ── Show more / Show less ────────────────────────
-const CARDS_INITIAL = 5;
-let showingAll      = false;
-let isParticulares  = false;   // true cuando filtro activo es Vendedores Particulares
-let allParticulares = [];       // cache — se carga desde /api/particulares
+const CARDS_INITIAL  = 5;
+let showingAll       = false;
+let isParticulares   = false;
+let allParticulares  = [];
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,14 +46,12 @@ async function loadVehicles() {
   const grid = document.getElementById('vehiclesGrid');
   try {
     if (isParticulares) {
-      // Endpoint dedicado — solo clientes, nunca mezclados con el dealer
       const res = await fetch('/api/particulares');
       if (!res.ok) throw new Error();
       allParticulares = await res.json();
       renderVehicles(allParticulares);
       return;
     }
-    // Endpoint del dealer
     const url = activeFilter
       ? `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`
       : '/api/vehiculos';
@@ -86,7 +84,7 @@ function renderVehicles(list) {
   const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
 
-  // Fondo oscuro + borde dorado en modo particulares
+  // Modo particulares: fondo negro + borde dorado
   if (gridWrap) gridWrap.classList.toggle('grid-wrap--part', isParticulares);
 
   if (!list.length) {
@@ -99,7 +97,6 @@ function renderVehicles(list) {
     return;
   }
 
-  // Mostrar más: activo en Todos Y en Particulares
   const isTodos     = !activeFilter && !isParticulares;
   const needsToggle = (isTodos || isParticulares) && list.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
@@ -174,7 +171,6 @@ function initFilters() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
       const tipo     = btn.dataset.tipo || '';
       isParticulares = tipo === '__particulares__';
       activeFilter   = isParticulares ? '' : tipo;
@@ -187,7 +183,6 @@ function initFilters() {
       });
       updateClearBtn();
 
-      // Ocultar sort bar cuando estamos en modo particulares
       const sb = document.getElementById('sortBar');
       if (sb) sb.style.display = isParticulares ? 'none' : '';
 
@@ -210,10 +205,7 @@ function initSortBar() {
 }
 
 function applySort() {
-  if (isParticulares) {
-    renderVehicles(allParticulares);
-    return;
-  }
+  if (isParticulares) { renderVehicles(allParticulares); return; }
 
   sortPrecio  = document.getElementById('sortPrecio')?.value  || '';
   sortAnio    = document.getElementById('sortAnio')?.value    || '';
@@ -260,11 +252,8 @@ function clearSort() {
 // ── Mostrar más / Mostrar menos ───────────────────
 function toggleShowMore() {
   showingAll = !showingAll;
-  if (isParticulares) {
-    renderVehicles(allParticulares);
-  } else {
-    applySort();
-  }
+  if (isParticulares) { renderVehicles(allParticulares); }
+  else { applySort(); }
   if (!showingAll) {
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

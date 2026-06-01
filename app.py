@@ -145,18 +145,11 @@ def init_db():
                 creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        # Migración automática: añade columna si la BD ya existe sin ella
         conn.execute("""
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name='anuncios_clientes' AND column_name='imagenes_extra'
-                ) THEN
-                    ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT;
-                END IF;
-            END
-            $$;
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='anuncios_clientes' AND column_name='imagenes_extra')
+              THEN ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT; END IF;
+            END $$;
         """)
 
 
@@ -300,7 +293,7 @@ def api_vehiculos():
     q_clientes = (
         'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
         'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
-        'imagenes_extra, nombre as nombre_vendedor, '
+        'NULL as imagenes_extra, nombre as nombre_vendedor, '
         'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
         'condicion, \'cliente\' as origen '
         'FROM anuncios_clientes WHERE estado = \'aprobado\''
@@ -330,26 +323,23 @@ def api_vehiculos():
 
 @app.route('/api/particulares', methods=['GET'])
 def api_particulares():
-    """Solo anuncios de clientes aprobados — nunca mezclados con el dealer."""
     with get_db() as conn:
         rows = conn.execute(
-            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
-            'imagenes_extra, moneda, condicion, creado_en, '
-            'nombre AS nombre_vendedor, '
-            'telefono AS telefono_vendedor, '
+            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, '
+            'imagen, imagenes_extra, moneda, condicion, creado_en, '
+            'nombre AS nombre_vendedor, telefono AS telefono_vendedor, '
             'whatsapp AS whatsapp_vendedor '
             'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
             ('aprobado',)
         ).fetchall()
-
     result = []
     for r in rows:
         d = dict(r)
         raw = d.get('imagenes_extra')
         try:    d['imagenes_extra'] = json.loads(raw) if raw else []
         except: d['imagenes_extra'] = []
-        d['origen']       = 'cliente'
-        d['oferta']       = 0
+        d['origen']        = 'cliente'
+        d['oferta']        = 0
         d['precio_oferta'] = None
         result.append(d)
     return jsonify(result)
