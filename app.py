@@ -139,18 +139,11 @@ def init_db():
                 moneda      TEXT    NOT NULL DEFAULT 'DOP',
                 condicion   TEXT    NOT NULL DEFAULT 'usado',
                 descripcion TEXT,
-                imagen         TEXT,
-                imagenes_extra TEXT,
-                estado         TEXT    NOT NULL DEFAULT 'pendiente',
+                imagen      TEXT,
+                estado      TEXT    NOT NULL DEFAULT 'pendiente',
                 creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        conn.execute("""
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='anuncios_clientes' AND column_name='imagenes_extra')
-              THEN ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT; END IF;
-            END $$;
-        """)
 
 
 if DATABASE_URL:
@@ -290,25 +283,11 @@ def api_vehiculos():
         q_dealer += ' WHERE tipo = ?'
         params.append(tipo)
 
-    q_clientes = (
-        'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
-        'creado_en, 0 as oferta, NULL as precio_oferta, moneda, '
-        'NULL as imagenes_extra, nombre as nombre_vendedor, '
-        'telefono as telefono_vendedor, whatsapp as whatsapp_vendedor, '
-        'condicion, \'cliente\' as origen '
-        'FROM anuncios_clientes WHERE estado = \'aprobado\''
-    )
-    if tipo:
-        q_clientes += ' AND tipo = ?'
-        params.append(tipo)
-
-    full_query = (
-        f'SELECT * FROM ({q_dealer} UNION ALL {q_clientes}) AS resultado '
-        f'ORDER BY creado_en DESC'
-    )
+    # Solo dealer — los particulares tienen su propio endpoint /api/particulares
+    q_dealer += ' ORDER BY creado_en DESC'
 
     with get_db() as conn:
-        rows = conn.execute(full_query, params).fetchall()
+        rows = conn.execute(q_dealer, params).fetchall()
 
     result = []
     for r in rows:
@@ -318,30 +297,6 @@ def api_vehiculos():
         except: d['imagenes_extra'] = []
         result.append(d)
 
-    return jsonify(result)
-
-
-@app.route('/api/particulares', methods=['GET'])
-def api_particulares():
-    with get_db() as conn:
-        rows = conn.execute(
-            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, '
-            'imagen, imagenes_extra, moneda, condicion, creado_en, '
-            'nombre AS nombre_vendedor, telefono AS telefono_vendedor, '
-            'whatsapp AS whatsapp_vendedor '
-            'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
-            ('aprobado',)
-        ).fetchall()
-    result = []
-    for r in rows:
-        d = dict(r)
-        raw = d.get('imagenes_extra')
-        try:    d['imagenes_extra'] = json.loads(raw) if raw else []
-        except: d['imagenes_extra'] = []
-        d['origen']        = 'cliente'
-        d['oferta']        = 0
-        d['precio_oferta'] = None
-        result.append(d)
     return jsonify(result)
 
 
@@ -507,13 +462,12 @@ def api_crear_anuncio():
     if not all([nombre, telefono, marca, modelo, tipo, 1980 <= anio <= 2030, precio > 0]):
         return jsonify({'error': 'Completa todos los campos requeridos.'}), 400
 
-    imagen  = guardar_imagen(request.files.get('imagen'))
-    extras  = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
+    imagen = guardar_imagen(request.files.get('imagen'))
 
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
-            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen, json.dumps(extras))
+            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
+            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen)
         )
         generated_id = cur.fetchone()['id']
     return jsonify({'ok': True, 'id': generated_id}), 201
