@@ -904,7 +904,7 @@ async function loadAnuncios(estado, btn) {
   cont.innerHTML = list.map(a => {
     const moneda = a.moneda === 'USD' ? 'US$' : 'RD$';
     const precio = Number(a.precio).toLocaleString('es-DO');
-    const img = a.imagen ? `<img src="/static/uploads/${a.imagen}" class="anuncio-img" />` : '';
+    const img = a.imagen ? `<img src="/img/${a.imagen}" class="anuncio-img" />` : '';
     return `<div class="anuncio-item">
       ${img}
       <div class="anuncio-data">

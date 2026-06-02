@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSecretTrigger();
   initFotoPreview();
+  updateStatCount();
 });
 
 // ══════════════════════════════════════════════════
@@ -174,7 +175,6 @@ function initFilters() {
       isParticulares = tipo === '__particulares__';
       activeFilter   = isParticulares ? '' : tipo;
       showingAll     = false;
-
       sortPrecio = ''; sortAnio = ''; filterMarca = '';
       ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
         const el = document.getElementById(id);
@@ -243,7 +243,7 @@ function clearSort() {
     if (el) { el.value = ''; el.classList.remove('active-filter'); }
   });
   updateClearBtn();
-  renderVehicles(allVehicles);
+  renderVehicles(allVehicles.filter(v => v.origen !== 'cliente'));
 }
 
 // ── Mostrar más / Mostrar menos ───────────────────
@@ -262,7 +262,7 @@ window.toggleShowMore = toggleShowMore;
 // ══════════════════════════════════════════════════
 
 function openModal(id) {
-  const v = allVehicles.find(x => x.id === id);
+  const v = allVehicles.find(x => x.id === id) || allParticulares.find(x => x.id === id);
   if (!v) return;
 
   const moneda     = v.moneda || 'DOP';
@@ -679,7 +679,7 @@ function initSecretTrigger() {
 // ══════════════════════════════════════════════════
 
 function animateCount(el, target) {
-  if (!el) return;
+  if (!el || !target) return;
   let current = 0;
   const step  = Math.max(1, Math.ceil(target / 20));
   const timer = setInterval(() => {

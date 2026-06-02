@@ -297,6 +297,7 @@ ul { list-style: none; }
 .hero-stats {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 0;
   margin-top: 64px;
@@ -306,15 +307,16 @@ ul { list-style: none; }
 @media (min-width: 768px) { .hero-stats { justify-content: flex-start; } }
 .stat {
   text-align: center;
-  padding: 0 28px;
+  padding: 0 18px;
   border-right: 1px solid var(--dark-border);
+  min-width: 0;
 }
 .stat:first-child { padding-left: 0; }
 .stat:last-child  { border-right: none; }
 .stat-num {
   display: block;
   font-family: var(--font-display);
-  font-size: 2.6rem;
+  font-size: 2.2rem;
   color: var(--red);
   letter-spacing: 2px;
   line-height: 1;
@@ -322,11 +324,12 @@ ul { list-style: none; }
 .stat-label {
   display: block;
   font-family: var(--font-cond);
-  font-size: .72rem;
+  font-size: .65rem;
   color: var(--text-inv-2);
-  letter-spacing: 1px;
+  letter-spacing: .8px;
   text-transform: uppercase;
   margin-top: 4px;
+  white-space: nowrap;
 }
 
 /* ══ OFERTAS SLIDER ═══════════════════════════════ */
@@ -2251,7 +2254,7 @@ input[type="file"][data-crop] + .fotos-hint {
 }
 
 
-/* ═══ VENDEDORES PARTICULARES ═══════════════════ */
+/* ═══ VENDEDORES PARTICULARES ═══════════════════════ */
 .filter-btn-part { border-color:#f59e0b; color:#92400e; background:#fffbeb; }
 .filter-btn-part:hover,
 .filter-btn-part.active {
@@ -2274,4 +2277,21 @@ input[type="file"][data-crop] + .fotos-hint {
   background:rgba(245,158,11,.1) !important;
   box-shadow:0 4px 20px rgba(245,158,11,.3) !important;
   transform:translateY(-1px);
+}
+
+/* Stats en mobile: 2 columnas para que quepan 4 stats */
+@media (max-width: 600px) {
+  .hero-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 0;
+  }
+  .stat {
+    padding: 0 12px;
+    border-right: 1px solid var(--dark-border);
+  }
+  .stat:nth-child(2n) { border-right: none; }
+  .stat:nth-child(n+3) { border-top: 1px solid var(--dark-border); padding-top: 20px; }
+  .stat-num   { font-size: 1.8rem; }
+  .stat-label { font-size: .6rem; white-space: normal; }
 }

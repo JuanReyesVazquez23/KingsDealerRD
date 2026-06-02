@@ -93,7 +93,6 @@ def get_db():
 def init_db():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     with get_db() as conn:
-        # Tabla de imágenes (base64 en BD, permanente en Railway)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS imagenes (
                 id        SERIAL PRIMARY KEY,
@@ -157,7 +156,6 @@ def init_db():
         ''')
 
 
-        # Columna imagenes_extra si no existe
         conn.execute("""
             DO $$ BEGIN
               IF NOT EXISTS (
@@ -197,24 +195,19 @@ def sanitize_phone(value):
     return re.sub(r'[^0-9+\-() ]', '', value).strip()[:20]
 
 def guardar_imagen(file):
-    """Guarda imagen en PostgreSQL como base64. Devuelve nombre único."""
     if not file or not file.filename: return None
     if not allowed_file(file.filename): return None
     ext      = file.filename.rsplit('.', 1)[1].lower()
     nombre   = secrets.token_hex(16) + '.' + ext
-    mime_map = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png',
-                'webp':'image/webp','gif':'image/gif'}
+    mime_map = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp','gif':'image/gif'}
     mime     = mime_map.get(ext, 'image/jpeg')
     data_b64 = base64.b64encode(file.read()).decode('utf-8')
     with get_db() as conn:
-        conn.execute(
-            'INSERT INTO imagenes (nombre, mime_type, data) VALUES (?,?,?) ON CONFLICT (nombre) DO NOTHING',
-            (nombre, mime, data_b64)
-        )
+        conn.execute('INSERT INTO imagenes (nombre,mime_type,data) VALUES (?,?,?) ON CONFLICT (nombre) DO NOTHING',
+                     (nombre, mime, data_b64))
     return nombre
 
 def borrar_imagen(nombre):
-    """Elimina imagen de PostgreSQL."""
     if not nombre: return
     with get_db() as conn:
         conn.execute('DELETE FROM imagenes WHERE nombre=?', (nombre,))
@@ -325,14 +318,12 @@ def api_vehiculos():
 
 @app.route('/api/particulares', methods=['GET'])
 def api_particulares():
-    """Solo anuncios de clientes aprobados — nunca mezclados con dealer."""
     with get_db() as conn:
         rows = conn.execute(
-            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
-            'imagenes_extra, moneda, condicion, creado_en, '
-            'nombre AS nombre_vendedor, telefono AS telefono_vendedor, '
-            'whatsapp AS whatsapp_vendedor '
-            'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
+            'SELECT id,marca,modelo,anio,tipo,precio,descripcion,imagen,imagenes_extra,'
+            'moneda,condicion,creado_en,nombre AS nombre_vendedor,'
+            'telefono AS telefono_vendedor,whatsapp AS whatsapp_vendedor '
+            'FROM anuncios_clientes WHERE estado=? ORDER BY creado_en DESC',
             ('aprobado',)
         ).fetchall()
     result = []
@@ -509,14 +500,10 @@ def api_crear_anuncio():
 
     imagen  = guardar_imagen(request.files.get('imagen'))
     extras  = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
-
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO anuncios_clientes '
-            '(nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen,imagenes_extra) '
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
-            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio,
-             moneda, condicion, descripcion, imagen, json.dumps(extras))
+            'INSERT INTO anuncios_clientes (nombre,telefono,whatsapp,marca,modelo,anio,tipo,precio,moneda,condicion,descripcion,imagen,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
+            (nombre, telefono, whatsapp, marca, modelo, anio, tipo, precio, moneda, condicion, descripcion, imagen, json.dumps(extras))
         )
         generated_id = cur.fetchone()['id']
     return jsonify({'ok': True, 'id': generated_id}), 201
@@ -553,7 +540,7 @@ def api_actualizar_anuncio(aid):
 @admin_required
 def api_eliminar_anuncio(aid):
     with get_db() as conn:
-        row = conn.execute('SELECT imagen, imagenes_extra FROM anuncios_clientes WHERE id=?', (aid,)).fetchone()
+        row = conn.execute('SELECT imagen,imagenes_extra FROM anuncios_clientes WHERE id=?', (aid,)).fetchone()
         if not row: return jsonify({'error': 'No encontrado.'}), 404
         d = row_to_dict(row)
         borrar_imagen(d['imagen'])
@@ -567,24 +554,19 @@ def api_eliminar_anuncio(aid):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-
 @app.route('/img/<nombre>')
 def serve_imagen(nombre):
-    """Sirve imágenes desde PostgreSQL."""
     with get_db() as conn:
         row = conn.execute('SELECT mime_type, data FROM imagenes WHERE nombre=?', (nombre,)).fetchone()
-    if not row:
-        return '', 404
+    if not row: return '', 404
     from flask import Response
-    img_bytes = base64.b64decode(row['data'])
-    return Response(img_bytes, mimetype=row['mime_type'],
+    return Response(base64.b64decode(row['data']), mimetype=row['mime_type'],
                     headers={'Cache-Control': 'public, max-age=31536000'})
 
 
 # ── Manejador global de errores 500 ──────────────
 @app.route('/api/count')
 def api_count():
-    """Devuelve contadores de dealer y particulares para el hero."""
     with get_db() as conn:
         dealer = conn.execute('SELECT COUNT(*) AS n FROM vehiculos').fetchone()['n']
         part   = conn.execute("SELECT COUNT(*) AS n FROM anuncios_clientes WHERE estado='aprobado'").fetchone()['n']
