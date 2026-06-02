@@ -22,10 +22,10 @@ let filterMarca  = '';
 let keepImages   = [];
 
 // ── Show more / Show less ────────────────────────
-const CARDS_INITIAL  = 5;
-let showingAll       = false;
-let isParticulares   = false;
-let allParticulares  = [];
+const CARDS_INITIAL = 5;
+let showingAll      = false;
+let isParticulares  = false;
+let allParticulares = [];
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -84,7 +84,6 @@ function renderVehicles(list) {
   const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
 
-  // Modo particulares: fondo negro + borde dorado
   if (gridWrap) gridWrap.classList.toggle('grid-wrap--part', isParticulares);
 
   if (!list.length) {
@@ -154,7 +153,7 @@ function renderVehicles(list) {
 
 function buildCardImage(v) {
   if (v.imagen)
-    return `<img class="card-img" src="/static/uploads/${esc(v.imagen)}"
+    return `<img class="card-img" src="/img/${esc(v.imagen)}"
                  alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" />`;
   return `<div class="card-img-placeholder">
             <span class="ph-icon">🚗</span>
@@ -182,10 +181,8 @@ function initFilters() {
         if (el) { el.value = ''; el.classList.remove('active-filter'); }
       });
       updateClearBtn();
-
       const sb = document.getElementById('sortBar');
       if (sb) sb.style.display = isParticulares ? 'none' : '';
-
       loadVehicles();
     });
   });
@@ -279,14 +276,14 @@ function openModal(id) {
     galeriaHtml = `<div class="modal-img-ph">🚗</div>`;
   } else if (todasFotos.length === 1) {
     galeriaHtml = `<img class="modal-img"
-                        src="/static/uploads/${esc(todasFotos[0])}"
+                        src="/img/${esc(todasFotos[0])}"
                         alt="${esc(v.marca)} ${esc(v.modelo)}" />`;
   } else {
     galeriaHtml = `
       <div class="modal-gallery">
         <div class="mg-main-wrap">
           <img class="mg-main-img" id="mgMain"
-               src="/static/uploads/${esc(todasFotos[0])}"
+               src="/img/${esc(todasFotos[0])}"
                alt="${esc(v.marca)} ${esc(v.modelo)}" />
           <button class="mg-arrow mg-arrow-l" onclick="mgPrev()" aria-label="Anterior">&#8592;</button>
           <button class="mg-arrow mg-arrow-r" onclick="mgNext()" aria-label="Siguiente">&#8594;</button>
@@ -295,7 +292,7 @@ function openModal(id) {
         <div class="mg-thumbs" id="mgThumbs">
           ${todasFotos.map((f, i) => `
             <button class="mg-thumb${i === 0 ? ' active' : ''}" onclick="mgGoTo(${i})" aria-label="Foto ${i+1}">
-              <img src="/static/uploads/${esc(f)}" alt="Foto ${i+1}" loading="lazy" />
+              <img src="/img/${esc(f)}" alt="Foto ${i+1}" loading="lazy" />
             </button>`).join('')}
         </div>
       </div>`;
@@ -352,7 +349,7 @@ function mgGoTo(idx) {
   const main   = document.getElementById('mgMain');
   const curr   = document.getElementById('mgCurrent');
   const thumbs = document.querySelectorAll('.mg-thumb');
-  if (main)  main.src = `/static/uploads/${esc(fotos[idx])}`;
+  if (main)  main.src = `/img/${esc(fotos[idx])}`;
   if (curr)  curr.textContent = idx + 1;
   thumbs.forEach((t, i) => t.classList.toggle('active', i === idx));
 }
@@ -408,7 +405,7 @@ function buildSlider() {
   track.innerHTML = sliderOffers.map((v, i) => {
     const moneda = v.moneda || 'DOP';
     const img    = v.imagen
-      ? `<img class="slide-img" src="/static/uploads/${esc(v.imagen)}"
+      ? `<img class="slide-img" src="/img/${esc(v.imagen)}"
               alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" />`
       : `<div class="slide-img-ph">🚗</div>`;
     const precio = v.precio_oferta
@@ -582,7 +579,7 @@ function renderImagenesExistentes(lista) {
   cont.className = 'imagenes-existentes foto-preview-grid';
   cont.innerHTML = lista.map((nombre, i) => `
     <div class="foto-preview-item" id="ithumb-${i}">
-      <img src="/static/uploads/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
+      <img src="/img/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
       <button type="button" class="foto-preview-del" onclick="eliminarFotoExistente(${i})" aria-label="Eliminar foto ${i+1}">✕</button>
     </div>`).join('');
 }
