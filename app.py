@@ -1,9 +1,8 @@
 """
-KingsDealer - Flask Backend
-- PostgreSQL para todo (vehículos, anuncios, imágenes)
-- Imágenes guardadas como base64 en tabla 'imagenes' (no filesystem)
-- /api/vehiculos  → solo dealer
-- /api/particulares → solo clientes aprobados
+KingsDealer - Flask Backend v6 (PostgreSQL Version)
++ Tabla configuracion (mapa lat/lon configurable por admin)
++ Tabla anuncios_clientes (clientes pueden publicar su auto)
++ Rutas /vender y /api/anuncios
 """
 
 import os
@@ -31,11 +30,15 @@ if not _secret:
     raise RuntimeError("Variable de entorno SECRET_KEY no definida.")
 app.secret_key = _secret
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
-MAX_CONTENT_LENGTH = 8 * 1024 * 1024 * 20
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+ALLOWED_EXTENSIONS  = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 20   # 20 fotos × 8 MB máx
+app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
+# Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# Railway inyecta "postgres://" pero psycopg2 >= 2.9 necesita "postgresql://"
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -48,19 +51,20 @@ ADMIN_USER      = _admin_user
 ADMIN_PASS_HASH = hashlib.sha256(_admin_pass.encode()).hexdigest()
 
 
-# ══════════════════════════════════════════════════
-# BASE DE DATOS
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+# BASE DE DATOS (POSTGRESQL ADAPTER)
+# ══════════════════════════════════════════════════════════════════
 
 class PostgresConnection:
+    """Clase de ayuda para mantener la sintaxis limpia de tu app original"""
     def __init__(self, url):
-        self.url  = url
+        self.url = url
         self.conn = None
-        self.cur  = None
+        self.cur = None
 
     def __enter__(self):
         self.conn = psycopg2.connect(self.url, cursor_factory=RealDictCursor)
-        self.cur  = self.conn.cursor()
+        self.cur = self.conn.cursor()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -72,7 +76,9 @@ class PostgresConnection:
         self.conn.close()
 
     def execute(self, query, params=None):
+        # Convierte el marcador de posición '?' de SQLite al '%s' de PostgreSQL
         query = query.replace('?', '%s')
+        # psycopg2 no acepta lista vacía si no hay placeholders — normalizar
         if params is not None and len(params) == 0:
             self.cur.execute(query)
         else:
@@ -85,9 +91,9 @@ def get_db():
 
 
 def init_db():
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     with get_db() as conn:
-
-        # ── Tabla de imágenes (base64 en BD) ──────────────
+        # Tabla de imágenes (base64 en BD, permanente en Railway)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS imagenes (
                 id        SERIAL PRIMARY KEY,
@@ -97,8 +103,7 @@ def init_db():
                 creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-
-        # ── Tabla principal de vehículos ──────────────────
+        # ── Tabla principal de vehículos ──
         conn.execute('''
             CREATE TABLE IF NOT EXISTS vehiculos (
                 id            SERIAL PRIMARY KEY,
@@ -117,47 +122,48 @@ def init_db():
             )
         ''')
 
-        # ── Tabla configuración ───────────────────────────
+        # ── Tabla de configuración (clave/valor) ──
         conn.execute('''
             CREATE TABLE IF NOT EXISTS configuracion (
                 clave TEXT PRIMARY KEY,
                 valor TEXT NOT NULL
             )
         ''')
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lat','18.4737') ON CONFLICT (clave) DO NOTHING")
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lon','-69.9490') ON CONFLICT (clave) DO NOTHING")
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_label','KingsDealer — Av. Abraham Lincoln, Santo Domingo') ON CONFLICT (clave) DO NOTHING")
+        
+        # Valores por defecto para el mapa
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_lat', '18.4737') ON CONFLICT (clave) DO NOTHING")
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_lon', '-69.9490') ON CONFLICT (clave) DO NOTHING")
+        conn.execute("INSERT INTO configuracion (clave, valor) VALUES ('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo') ON CONFLICT (clave) DO NOTHING")
 
-        # ── Tabla anuncios de clientes ────────────────────
+        # ── Tabla de anuncios de clientes ──
         conn.execute('''
             CREATE TABLE IF NOT EXISTS anuncios_clientes (
-                id             SERIAL PRIMARY KEY,
-                nombre         TEXT    NOT NULL,
-                telefono       TEXT    NOT NULL,
-                whatsapp       TEXT,
-                marca          TEXT    NOT NULL,
-                modelo         TEXT    NOT NULL,
-                anio           INTEGER NOT NULL,
-                tipo           TEXT    NOT NULL,
-                precio         REAL    NOT NULL,
-                moneda         TEXT    NOT NULL DEFAULT 'DOP',
-                condicion      TEXT    NOT NULL DEFAULT 'usado',
-                descripcion    TEXT,
-                imagen         TEXT,
-                imagenes_extra TEXT,
-                estado         TEXT    NOT NULL DEFAULT 'pendiente',
-                creado_en      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                id          SERIAL PRIMARY KEY,
+                nombre      TEXT    NOT NULL,
+                telefono    TEXT    NOT NULL,
+                whatsapp    TEXT,
+                marca       TEXT    NOT NULL,
+                modelo      TEXT    NOT NULL,
+                anio        INTEGER NOT NULL,
+                tipo        TEXT    NOT NULL,
+                precio      REAL    NOT NULL,
+                moneda      TEXT    NOT NULL DEFAULT 'DOP',
+                condicion   TEXT    NOT NULL DEFAULT 'usado',
+                descripcion TEXT,
+                imagen      TEXT,
+                estado      TEXT    NOT NULL DEFAULT 'pendiente',
+                creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
-        # Migración: añadir imagenes_extra si la tabla ya existía sin ella
+
+        # Columna imagenes_extra si no existe
         conn.execute("""
             DO $$ BEGIN
               IF NOT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name='anuncios_clientes' AND column_name='imagenes_extra'
-              ) THEN
-                ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT;
+              ) THEN ALTER TABLE anuncios_clientes ADD COLUMN imagenes_extra TEXT;
               END IF;
             END $$;
         """)
@@ -167,9 +173,9 @@ if DATABASE_URL:
     init_db()
 
 
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # HELPERS
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -184,22 +190,20 @@ def admin_required(f):
 
 def sanitize_text(value, max_len=255):
     if not isinstance(value, str): return ''
-    return re.sub(r'[<>"\';`]', '', value).strip()[:max_len]
+    return re.sub(r'[<>"\'`;]', '', value).strip()[:max_len]
 
 def sanitize_phone(value):
     if not isinstance(value, str): return ''
     return re.sub(r'[^0-9+\-() ]', '', value).strip()[:20]
 
 def guardar_imagen(file):
-    """Guarda la imagen en la tabla 'imagenes' como base64. Devuelve el nombre único."""
-    if not file or not file.filename:
-        return None
-    if not allowed_file(file.filename):
-        return None
+    """Guarda imagen en PostgreSQL como base64. Devuelve nombre único."""
+    if not file or not file.filename: return None
+    if not allowed_file(file.filename): return None
     ext      = file.filename.rsplit('.', 1)[1].lower()
     nombre   = secrets.token_hex(16) + '.' + ext
-    mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-                'webp': 'image/webp', 'gif': 'image/gif'}
+    mime_map = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png',
+                'webp':'image/webp','gif':'image/gif'}
     mime     = mime_map.get(ext, 'image/jpeg')
     data_b64 = base64.b64encode(file.read()).decode('utf-8')
     with get_db() as conn:
@@ -210,14 +214,13 @@ def guardar_imagen(file):
     return nombre
 
 def borrar_imagen(nombre):
-    """Elimina una imagen de la BD."""
-    if not nombre:
-        return
+    """Elimina imagen de PostgreSQL."""
+    if not nombre: return
     with get_db() as conn:
         conn.execute('DELETE FROM imagenes WHERE nombre=?', (nombre,))
 
 def row_to_dict(row):
-    d   = dict(row)
+    d = dict(row)
     raw = d.get('imagenes_extra')
     try:    d['imagenes_extra'] = json.loads(raw) if raw else []
     except: d['imagenes_extra'] = []
@@ -225,35 +228,17 @@ def row_to_dict(row):
 
 def get_config(clave, default=''):
     with get_db() as conn:
-        r = conn.execute('SELECT valor FROM configuracion WHERE clave=? LIMIT 1', (clave,)).fetchone()
+        r = conn.execute("SELECT valor FROM configuracion WHERE clave=? LIMIT 1", (clave,)).fetchone()
     return r['valor'] if r else default
 
 
-# ══════════════════════════════════════════════════
-# ENDPOINT DE IMÁGENES (sirve desde BD)
-# ══════════════════════════════════════════════════
-
-@app.route('/img/<nombre>')
-def serve_imagen(nombre):
-    """Sirve imágenes directamente desde PostgreSQL."""
-    with get_db() as conn:
-        row = conn.execute('SELECT mime_type, data FROM imagenes WHERE nombre=?', (nombre,)).fetchone()
-    if not row:
-        return '', 404
-    img_bytes = base64.b64decode(row['data'])
-    from flask import Response
-    return Response(img_bytes, mimetype=row['mime_type'],
-                    headers={'Cache-Control': 'public, max-age=31536000'})
-
-
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # RUTAS PWA
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 @app.route('/static/sw.js')
 def service_worker():
-    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'sw.js',
-                               mimetype='application/javascript')
+    resp = send_from_directory(os.path.join(app.root_path, 'static'), 'sw.js', mimetype='application/javascript')
     resp.headers['Service-Worker-Allowed'] = '/'
     resp.headers['Cache-Control']          = 'no-cache, no-store, must-revalidate'
     return resp
@@ -263,9 +248,9 @@ def offline():
     return send_from_directory(app.root_path, 'offline.html')
 
 
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # RUTAS PÚBLICAS
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 @app.route('/')
 def index():
@@ -277,12 +262,15 @@ def index():
             'label': get_config('mapa_label', 'KingsDealer — Av. Abraham Lincoln, Santo Domingo'),
         }
     except Exception:
+        # Si la DB no responde, usar valores por defecto y seguir cargando la página
         mapa = {'lat': '18.4737', 'lon': '-69.9490', 'label': 'KingsDealer — Santo Domingo'}
     return render_template('index.html', role=role, mapa=mapa)
+
 
 @app.route('/vender', methods=['GET'])
 def vender():
     return render_template('vender.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -301,52 +289,52 @@ def login():
         error = 'Credenciales incorrectas.'
     return render_template('login.html', error=error)
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('index'))
 
 
-# ══════════════════════════════════════════════════
-# API DE VEHÍCULOS (solo dealer)
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+# API DE VEHÍCULOS
+# ══════════════════════════════════════════════════════════════════
 
 @app.route('/api/vehiculos', methods=['GET'])
 def api_vehiculos():
-    """Solo devuelve vehículos del dealer. Los particulares están en /api/particulares."""
     tipo   = request.args.get('tipo', '')
     params = []
-    query  = (
+
+    q_dealer = (
         'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
         'creado_en, oferta, precio_oferta, moneda, imagenes_extra, '
-        'NULL AS nombre_vendedor, NULL AS telefono_vendedor, '
-        'NULL AS whatsapp_vendedor, NULL AS condicion, \'dealer\' AS origen '
+        'NULL as nombre_vendedor, NULL as telefono_vendedor, '
+        'NULL as whatsapp_vendedor, NULL as condicion, \'dealer\' as origen '
         'FROM vehiculos'
     )
     if tipo:
-        query += ' WHERE tipo = ?'
+        q_dealer += ' WHERE tipo = ?'
         params.append(tipo)
-    query += ' ORDER BY creado_en DESC'
 
+    # Solo dealer — particulares en /api/particulares
+    q_dealer += ' ORDER BY creado_en DESC'
     with get_db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
+        rows = conn.execute(q_dealer, params).fetchall()
     return jsonify([row_to_dict(r) for r in rows])
 
 
 @app.route('/api/particulares', methods=['GET'])
 def api_particulares():
-    """Solo devuelve anuncios de clientes aprobados. Nunca mezclados con el dealer."""
+    """Solo anuncios de clientes aprobados — nunca mezclados con dealer."""
     with get_db() as conn:
         rows = conn.execute(
-            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, '
-            'imagen, imagenes_extra, moneda, condicion, creado_en, '
+            'SELECT id, marca, modelo, anio, tipo, precio, descripcion, imagen, '
+            'imagenes_extra, moneda, condicion, creado_en, '
             'nombre AS nombre_vendedor, telefono AS telefono_vendedor, '
             'whatsapp AS whatsapp_vendedor '
             'FROM anuncios_clientes WHERE estado = ? ORDER BY creado_en DESC',
             ('aprobado',)
         ).fetchall()
-
     result = []
     for r in rows:
         d = row_to_dict(r)
@@ -360,9 +348,7 @@ def api_particulares():
 @app.route('/api/ofertas', methods=['GET'])
 def api_ofertas():
     with get_db() as conn:
-        rows = conn.execute(
-            'SELECT * FROM vehiculos WHERE oferta = 1 ORDER BY creado_en DESC'
-        ).fetchall()
+        rows = conn.execute('SELECT * FROM vehiculos WHERE oferta = 1 ORDER BY creado_en DESC').fetchall()
     return jsonify([row_to_dict(r) for r in rows])
 
 
@@ -386,13 +372,12 @@ def api_crear_vehiculo():
     try:    precio_oferta = float(request.form.get('precio_oferta', '').strip()) or None
     except: precio_oferta = None
 
-    imagen         = guardar_imagen(request.files.get('imagen'))
+    imagen = guardar_imagen(request.files.get('imagen'))
     imagenes_extra = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
 
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO vehiculos (marca,modelo,anio,tipo,precio,descripcion,imagen,oferta,precio_oferta,moneda,imagenes_extra) '
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
+            'INSERT INTO vehiculos (marca,modelo,anio,tipo,precio,descripcion,imagen,oferta,precio_oferta,moneda,imagenes_extra) VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING id',
             (marca, modelo, anio, tipo, precio, descripcion, imagen, oferta, precio_oferta, moneda, json.dumps(imagenes_extra))
         )
         generated_id = cur.fetchone()['id']
@@ -422,11 +407,11 @@ def api_editar_vehiculo(vid):
         return jsonify({'error': 'Año o precio inválido.'}), 400
 
     oferta_raw = request.form.get('oferta')
-    oferta     = int(oferta_raw) if oferta_raw in ('0', '1') else ex['oferta']
-    try:    precio_oferta = float(request.form.get('precio_oferta', '').strip()) or None
+    oferta     = int(oferta_raw) if oferta_raw in ('0','1') else ex['oferta']
+    try:    precio_oferta = float(request.form.get('precio_oferta','').strip()) or None
     except: precio_oferta = ex['precio_oferta']
 
-    imagen          = ex['imagen']
+    imagen = ex['imagen']
     nuevo_principal = request.files.get('imagen')
     if nuevo_principal and nuevo_principal.filename:
         borrar_imagen(imagen)
@@ -437,18 +422,15 @@ def api_editar_vehiculo(vid):
     if not isinstance(keep_list, list): keep_list = []
 
     for nombre in ex['imagenes_extra']:
-        if nombre not in keep_list:
-            borrar_imagen(nombre)
+        if nombre not in keep_list: borrar_imagen(nombre)
 
     nuevas_extra   = [n for n in [guardar_imagen(f) for f in request.files.getlist('imagenes_extra')] if n]
     imagenes_extra = keep_list + nuevas_extra
 
     with get_db() as conn:
         conn.execute(
-            'UPDATE vehiculos SET marca=?,modelo=?,anio=?,tipo=?,precio=?,descripcion=?,imagen=?,'
-            'oferta=?,precio_oferta=?,moneda=?,imagenes_extra=? WHERE id=?',
-            (marca, modelo, anio, tipo, precio, descripcion, imagen,
-             oferta, precio_oferta, moneda, json.dumps(imagenes_extra), vid)
+            'UPDATE vehiculos SET marca=?,modelo=?,anio=?,tipo=?,precio=?,descripcion=?,imagen=?,oferta=?,precio_oferta=?,moneda=?,imagenes_extra=? WHERE id=?',
+            (marca, modelo, anio, tipo, precio, descripcion, imagen, oferta, precio_oferta, moneda, json.dumps(imagenes_extra), vid)
         )
         row = conn.execute('SELECT * FROM vehiculos WHERE id=?', (vid,)).fetchone()
     return jsonify(row_to_dict(row))
@@ -459,19 +441,17 @@ def api_editar_vehiculo(vid):
 def api_eliminar_vehiculo(vid):
     with get_db() as conn:
         row = conn.execute('SELECT * FROM vehiculos WHERE id=?', (vid,)).fetchone()
-        if not row:
-            return jsonify({'error': 'No encontrado.'}), 404
+        if not row: return jsonify({'error': 'No encontrado.'}), 404
         d = row_to_dict(row)
         borrar_imagen(d['imagen'])
-        for n in d['imagenes_extra']:
-            borrar_imagen(n)
+        for n in d['imagenes_extra']: borrar_imagen(n)
         conn.execute('DELETE FROM vehiculos WHERE id=?', (vid,))
     return jsonify({'ok': True})
 
 
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # API CONFIGURACIÓN (mapa)
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 @app.route('/api/config/mapa', methods=['GET'])
 def api_get_mapa():
@@ -481,44 +461,49 @@ def api_get_mapa():
         'label': get_config('mapa_label', 'KingsDealer — Av. Abraham Lincoln'),
     })
 
+
 @app.route('/api/config/mapa', methods=['PUT'])
 @admin_required
 def api_set_mapa():
-    data  = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True) or {}
     lat   = str(data.get('lat',   '')).strip()
     lon   = str(data.get('lon',   '')).strip()
     label = sanitize_text(str(data.get('label', '')), 200)
+
     try:
         float(lat); float(lon)
     except ValueError:
         return jsonify({'error': 'Coordenadas inválidas.'}), 400
+
     with get_db() as conn:
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lat',?) ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor",   (lat,))
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lon',?) ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor",   (lon,))
-        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_label',?) ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor", (label,))
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lat',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor",   (lat,))
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_lon',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor",   (lon,))
+        conn.execute("INSERT INTO configuracion (clave,valor) VALUES ('mapa_label',?) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor", (label,))
     return jsonify({'ok': True, 'lat': lat, 'lon': lon, 'label': label})
 
 
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # API ANUNCIOS DE CLIENTES
-# ══════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 @app.route('/api/anuncios', methods=['POST'])
 def api_crear_anuncio():
-    nombre      = sanitize_text(request.form.get('nombre', ''), 100)
-    telefono    = sanitize_phone(request.form.get('telefono', ''))
-    whatsapp    = sanitize_phone(request.form.get('whatsapp', ''))
-    marca       = sanitize_text(request.form.get('marca', ''), 100)
-    modelo      = sanitize_text(request.form.get('modelo', ''), 100)
-    tipo        = sanitize_text(request.form.get('tipo', ''), 50)
+    nombre    = sanitize_text(request.form.get('nombre', ''), 100)
+    telefono  = sanitize_phone(request.form.get('telefono', ''))
+    whatsapp  = sanitize_phone(request.form.get('whatsapp', ''))
+    marca     = sanitize_text(request.form.get('marca', ''), 100)
+    modelo    = sanitize_text(request.form.get('modelo', ''), 100)
+    tipo      = sanitize_text(request.form.get('tipo', ''), 50)
     descripcion = sanitize_text(request.form.get('descripcion', ''), 500)
-    moneda      = 'USD' if request.form.get('moneda') == 'USD' else 'DOP'
-    condicion   = 'nuevo' if request.form.get('condicion') == 'nuevo' else 'usado'
+    moneda    = 'USD' if request.form.get('moneda') == 'USD' else 'DOP'
+    condicion = 'nuevo' if request.form.get('condicion') == 'nuevo' else 'usado'
+
     try:
         anio   = int(request.form.get('anio', 0))
         precio = float(request.form.get('precio', 0))
     except ValueError:
         return jsonify({'error': 'Año o precio inválido.'}), 400
+
     if not all([nombre, telefono, marca, modelo, tipo, 1980 <= anio <= 2030, precio > 0]):
         return jsonify({'error': 'Completa todos los campos requeridos.'}), 400
 
@@ -549,7 +534,7 @@ def api_listar_anuncios():
     query += ' ORDER BY creado_en DESC'
     with get_db() as conn:
         rows = conn.execute(query, params).fetchall()
-    return jsonify([row_to_dict(r) for r in rows])
+    return jsonify([dict(r) for r in rows])
 
 
 @app.route('/api/anuncios/<int:aid>', methods=['PUT'])
@@ -569,29 +554,52 @@ def api_actualizar_anuncio(aid):
 def api_eliminar_anuncio(aid):
     with get_db() as conn:
         row = conn.execute('SELECT imagen, imagenes_extra FROM anuncios_clientes WHERE id=?', (aid,)).fetchone()
-        if not row:
-            return jsonify({'error': 'No encontrado.'}), 404
+        if not row: return jsonify({'error': 'No encontrado.'}), 404
         d = row_to_dict(row)
         borrar_imagen(d['imagen'])
-        for n in d['imagenes_extra']:
-            borrar_imagen(n)
+        for n in d['imagenes_extra']: borrar_imagen(n)
         conn.execute('DELETE FROM anuncios_clientes WHERE id=?', (aid,))
     return jsonify({'ok': True})
 
 
-# ══════════════════════════════════════════════════
-# ERRORES
-# ══════════════════════════════════════════════════
+# ── Imágenes ──────────────────────────────────────
+@app.route('/static/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/img/<nombre>')
+def serve_imagen(nombre):
+    """Sirve imágenes desde PostgreSQL."""
+    with get_db() as conn:
+        row = conn.execute('SELECT mime_type, data FROM imagenes WHERE nombre=?', (nombre,)).fetchone()
+    if not row:
+        return '', 404
+    from flask import Response
+    img_bytes = base64.b64decode(row['data'])
+    return Response(img_bytes, mimetype=row['mime_type'],
+                    headers={'Cache-Control': 'public, max-age=31536000'})
+
+
+# ── Manejador global de errores 500 ──────────────
+@app.route('/api/count')
+def api_count():
+    """Devuelve contadores de dealer y particulares para el hero."""
+    with get_db() as conn:
+        dealer = conn.execute('SELECT COUNT(*) AS n FROM vehiculos').fetchone()['n']
+        part   = conn.execute("SELECT COUNT(*) AS n FROM anuncios_clientes WHERE estado='aprobado'").fetchone()['n']
+    return jsonify({'dealer': dealer, 'particulares': part})
+
 
 @app.errorhandler(500)
 def internal_error(e):
     import traceback
     app.logger.error("Error 500: %s\n%s", str(e), traceback.format_exc())
-    return jsonify({'error': 'Error interno del servidor.'}), 500
+    return jsonify({'error': 'Error interno del servidor. Intenta de nuevo.'}), 500
 
 @app.errorhandler(413)
 def request_too_large(e):
-    return jsonify({'error': 'Archivo demasiado grande. Máx. 8 MB por foto.'}), 413
+    return jsonify({'error': 'El archivo es demasiado grande. Máx. 8 MB por foto.'}), 413
 
 
 if __name__ == '__main__':

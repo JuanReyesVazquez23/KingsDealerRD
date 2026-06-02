@@ -60,7 +60,7 @@ async function loadVehicles() {
     allVehicles = await res.json();
     populateMarcaSelect();
     applySort();
-    updateStatCount(allVehicles.length);
+    updateStatCount();
   } catch {
     if (grid) grid.innerHTML =
       '<div class="empty-state"><div class="es-icon">⚠️</div><p>No se pudo cargar el catálogo. Verifica tu conexión.</p></div>';
@@ -678,16 +678,25 @@ function initSecretTrigger() {
 // CONTADOR HERO
 // ══════════════════════════════════════════════════
 
-function updateStatCount(total) {
-  const el = document.getElementById('statVehiculos');
+function animateCount(el, target) {
   if (!el) return;
   let current = 0;
-  const step  = Math.max(1, Math.ceil(total / 20));
+  const step  = Math.max(1, Math.ceil(target / 20));
   const timer = setInterval(() => {
-    current = Math.min(current + step, total);
+    current = Math.min(current + step, target);
     el.textContent = current;
-    if (current >= total) clearInterval(timer);
+    if (current >= target) clearInterval(timer);
   }, 40);
+}
+
+async function updateStatCount() {
+  try {
+    const res  = await fetch('/api/count');
+    if (!res.ok) return;
+    const data = await res.json();
+    animateCount(document.getElementById('statVehiculos'),    data.dealer      || 0);
+    animateCount(document.getElementById('statParticulares'), data.particulares || 0);
+  } catch {}
 }
 
 // ══════════════════════════════════════════════════

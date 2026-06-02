@@ -69,7 +69,11 @@
   <div class="hero-stats">
     <div class="stat">
       <span class="stat-num" id="statVehiculos">0</span>
-      <span class="stat-label">Vehículos</span>
+      <span class="stat-label">Vehículos del dealer</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num" id="statParticulares">0</span>
+      <span class="stat-label">Vendedores particulares</span>
     </div>
     <div class="stat">
       <span class="stat-num">12+</span>
@@ -298,7 +302,7 @@
       <button class="filter-btn" data-tipo="Vehículos Compactos">Vehículos Compactos</button>
       <button class="filter-btn" data-tipo="Pickup">Pickup</button>
       <button class="filter-btn" data-tipo="Camionetas Compactas">Camionetas Compactas</button>
-      <button class="filter-btn filter-btn-part" data-tipo="__particulares__">⭐ Vendedores Particulares</button>
+      <button class="filter-btn filter-btn-part" data-tipo="__particulares__">Vendedores Particulares</button>
     </div><!-- /filters -->
 
     <!-- Sort bar -->
@@ -339,7 +343,6 @@
           <p>Cargando vehículos…</p>
         </div>
       </div>
-
       <div class="show-more-wrap" id="showMoreWrap" style="display:none">
         <button class="btn-show-more" id="showMoreBtn" onclick="toggleShowMore()">
           <span id="showMoreLabel">Ver más vehículos</span>
@@ -901,7 +904,7 @@ async function loadAnuncios(estado, btn) {
   cont.innerHTML = list.map(a => {
     const moneda = a.moneda === 'USD' ? 'US$' : 'RD$';
     const precio = Number(a.precio).toLocaleString('es-DO');
-    const img = a.imagen ? `<img src="/img/${a.imagen}" class="anuncio-img" />` : '';
+    const img = a.imagen ? `<img src="/static/uploads/${a.imagen}" class="anuncio-img" />` : '';
     return `<div class="anuncio-item">
       ${img}
       <div class="anuncio-data">
