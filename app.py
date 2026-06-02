@@ -149,8 +149,9 @@ def init_db():
                 moneda      TEXT    NOT NULL DEFAULT 'DOP',
                 condicion   TEXT    NOT NULL DEFAULT 'usado',
                 descripcion TEXT,
-                imagen      TEXT,
-                estado      TEXT    NOT NULL DEFAULT 'pendiente',
+                imagen         TEXT,
+                imagenes_extra TEXT,
+                estado         TEXT    NOT NULL DEFAULT 'pendiente',
                 creado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
