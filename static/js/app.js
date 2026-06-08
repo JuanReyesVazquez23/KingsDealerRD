@@ -21,9 +21,11 @@ let sortAnio     = '';
 let filterMarca  = '';
 let keepImages   = [];
 
-// ── Show more / Show less — solo activo en filtro "Todos" ──
-const CARDS_INITIAL = 6;  // tarjetas visibles al inicio
+// ── Show more / Show less ────────────────────────
+const CARDS_INITIAL = 5;
 let showingAll      = false;
+let isParticulares  = false;
+let allParticulares = [];
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSecretTrigger();
   initFotoPreview();
+  updateStatCount();
 });
 
 // ══════════════════════════════════════════════════
@@ -41,7 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════════════
 
 async function loadVehicles() {
+  const grid = document.getElementById('vehiclesGrid');
   try {
+    if (isParticulares) {
+      const res = await fetch('/api/particulares');
+      if (!res.ok) throw new Error();
+      allParticulares = await res.json();
+      renderVehicles(allParticulares);
+      return;
+    }
     const url = activeFilter
       ? `/api/vehiculos?tipo=${encodeURIComponent(activeFilter)}`
       : '/api/vehiculos';
@@ -50,9 +61,8 @@ async function loadVehicles() {
     allVehicles = await res.json();
     populateMarcaSelect();
     applySort();
-    updateStatCount(allVehicles.length);
+    updateStatCount();
   } catch {
-    const grid = document.getElementById('vehiclesGrid');
     if (grid) grid.innerHTML =
       '<div class="empty-state"><div class="es-icon">⚠️</div><p>No se pudo cargar el catálogo. Verifica tu conexión.</p></div>';
   }
@@ -72,21 +82,23 @@ function badgeMoneda(moneda) {
 function renderVehicles(list) {
   const grid     = document.getElementById('vehiclesGrid');
   const moreWrap = document.getElementById('showMoreWrap');
+  const gridWrap = document.getElementById('gridWrap');
   if (!grid) return;
+
+  if (gridWrap) gridWrap.classList.toggle('grid-wrap--part', isParticulares);
 
   if (!list.length) {
     grid.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-state${isParticulares ? ' empty-state--dark' : ''}">
         <div class="es-icon">🚗</div>
-        <p>No hay vehículos en esta categoría.</p>
+        <p>${isParticulares ? 'No hay publicaciones de vendedores particulares.' : 'No hay vehículos en esta categoría.'}</p>
       </div>`;
     if (moreWrap) moreWrap.style.display = 'none';
     return;
   }
 
-  // Botón visible solo en filtro "Todos" con más de CARDS_INITIAL resultados
-  const isTodos     = !activeFilter;
-  const needsToggle = isTodos && list.length > CARDS_INITIAL;
+  const isTodos     = !activeFilter && !isParticulares;
+  const needsToggle = (isTodos || isParticulares) && list.length > CARDS_INITIAL;
   if (!needsToggle) showingAll = false;
 
   const displayList = needsToggle && !showingAll ? list.slice(0, CARDS_INITIAL) : list;
@@ -95,8 +107,11 @@ function renderVehicles(list) {
     moreWrap.style.display = needsToggle ? 'flex' : 'none';
     const label = document.getElementById('showMoreLabel');
     const arrow = document.getElementById('showMoreArrow');
-    if (label) label.textContent = showingAll ? 'Ver menos vehículos' : 'Ver más vehículos';
+    const btn   = document.getElementById('showMoreBtn');
+    const txt   = isParticulares ? 'publicaciones' : 'vehículos';
+    if (label) label.textContent    = showingAll ? `Ver menos ${txt}` : `Ver más ${txt}`;
     if (arrow) arrow.style.transform = showingAll ? 'rotate(180deg)' : 'rotate(0deg)';
+    if (btn)   btn.classList.toggle('btn-show-more--part', isParticulares);
   }
 
   grid.innerHTML = displayList.map((v, i) => {
@@ -139,7 +154,7 @@ function renderVehicles(list) {
 
 function buildCardImage(v) {
   if (v.imagen)
-    return `<img class="card-img" src="/static/uploads/${esc(v.imagen)}"
+    return `<img class="card-img" src="/img/${esc(v.imagen)}"
                  alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" />`;
   return `<div class="card-img-placeholder">
             <span class="ph-icon">🚗</span>
@@ -156,13 +171,18 @@ function initFilters() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeFilter = btn.dataset.tipo || '';
+      const tipo     = btn.dataset.tipo || '';
+      isParticulares = tipo === '__particulares__';
+      activeFilter   = isParticulares ? '' : tipo;
+      showingAll     = false;
       sortPrecio = ''; sortAnio = ''; filterMarca = '';
       ['sortPrecio', 'sortAnio', 'filterMarca'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.value = ''; el.classList.remove('active-filter'); }
       });
       updateClearBtn();
+      const sb = document.getElementById('sortBar');
+      if (sb) sb.style.display = isParticulares ? 'none' : '';
       loadVehicles();
     });
   });
@@ -182,6 +202,8 @@ function initSortBar() {
 }
 
 function applySort() {
+  if (isParticulares) { renderVehicles(allParticulares); return; }
+
   sortPrecio  = document.getElementById('sortPrecio')?.value  || '';
   sortAnio    = document.getElementById('sortAnio')?.value    || '';
   filterMarca = document.getElementById('filterMarca')?.value || '';
@@ -221,13 +243,14 @@ function clearSort() {
     if (el) { el.value = ''; el.classList.remove('active-filter'); }
   });
   updateClearBtn();
-  renderVehicles(allVehicles);
+  renderVehicles(allVehicles.filter(v => v.origen !== 'cliente'));
 }
 
 // ── Mostrar más / Mostrar menos ───────────────────
 function toggleShowMore() {
   showingAll = !showingAll;
-  applySort(); // re-renderiza respetando filtros y orden actuales
+  if (isParticulares) { renderVehicles(allParticulares); }
+  else { applySort(); }
   if (!showingAll) {
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -239,7 +262,7 @@ window.toggleShowMore = toggleShowMore;
 // ══════════════════════════════════════════════════
 
 function openModal(id) {
-  const v = allVehicles.find(x => x.id === id);
+  const v = allVehicles.find(x => x.id === id) || allParticulares.find(x => x.id === id);
   if (!v) return;
 
   const moneda     = v.moneda || 'DOP';
@@ -253,14 +276,14 @@ function openModal(id) {
     galeriaHtml = `<div class="modal-img-ph">🚗</div>`;
   } else if (todasFotos.length === 1) {
     galeriaHtml = `<img class="modal-img"
-                        src="/static/uploads/${esc(todasFotos[0])}"
+                        src="/img/${esc(todasFotos[0])}"
                         alt="${esc(v.marca)} ${esc(v.modelo)}" />`;
   } else {
     galeriaHtml = `
       <div class="modal-gallery">
         <div class="mg-main-wrap">
           <img class="mg-main-img" id="mgMain"
-               src="/static/uploads/${esc(todasFotos[0])}"
+               src="/img/${esc(todasFotos[0])}"
                alt="${esc(v.marca)} ${esc(v.modelo)}" />
           <button class="mg-arrow mg-arrow-l" onclick="mgPrev()" aria-label="Anterior">&#8592;</button>
           <button class="mg-arrow mg-arrow-r" onclick="mgNext()" aria-label="Siguiente">&#8594;</button>
@@ -269,7 +292,7 @@ function openModal(id) {
         <div class="mg-thumbs" id="mgThumbs">
           ${todasFotos.map((f, i) => `
             <button class="mg-thumb${i === 0 ? ' active' : ''}" onclick="mgGoTo(${i})" aria-label="Foto ${i+1}">
-              <img src="/static/uploads/${esc(f)}" alt="Foto ${i+1}" loading="lazy" />
+              <img src="/img/${esc(f)}" alt="Foto ${i+1}" loading="lazy" />
             </button>`).join('')}
         </div>
       </div>`;
@@ -326,7 +349,7 @@ function mgGoTo(idx) {
   const main   = document.getElementById('mgMain');
   const curr   = document.getElementById('mgCurrent');
   const thumbs = document.querySelectorAll('.mg-thumb');
-  if (main)  main.src = `/static/uploads/${esc(fotos[idx])}`;
+  if (main)  main.src = `/img/${esc(fotos[idx])}`;
   if (curr)  curr.textContent = idx + 1;
   thumbs.forEach((t, i) => t.classList.toggle('active', i === idx));
 }
@@ -382,7 +405,7 @@ function buildSlider() {
   track.innerHTML = sliderOffers.map((v, i) => {
     const moneda = v.moneda || 'DOP';
     const img    = v.imagen
-      ? `<img class="slide-img" src="/static/uploads/${esc(v.imagen)}"
+      ? `<img class="slide-img" src="/img/${esc(v.imagen)}"
               alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" />`
       : `<div class="slide-img-ph">🚗</div>`;
     const precio = v.precio_oferta
@@ -463,22 +486,18 @@ function resetForm() {
   keepImages   = [];
   pendingFiles = [];
 
-  // Limpiar preview foto principal (crop-previews junto al input fImagen)
+  // Limpiar preview foto principal
   const fImagen = document.getElementById('fImagen');
   if (fImagen) {
     fImagen.value = '';
-    // Eliminar el preview de recorte que queda del vehículo anterior
     const prevCrop = fImagen.parentNode?.querySelector('.crop-previews');
     if (prevCrop) prevCrop.innerHTML = '';
   }
-
-  // Limpiar previews de fotos adicionales
-  const pprev = document.getElementById('fotoPendingPreview'); if (pprev) pprev.innerHTML = '';
-  const fcnt  = document.getElementById('fotosCount');         if (fcnt)  fcnt.textContent = '';
-
-  // Limpiar también el input de fotos extra
+  // Limpiar fotos adicionales
   const fExtra = document.getElementById('fImagenesExtra');
   if (fExtra) fExtra.value = '';
+  const pprev = document.getElementById('fotoPendingPreview'); if (pprev) pprev.innerHTML = '';
+  const fcnt  = document.getElementById('fotosCount');         if (fcnt)  fcnt.textContent = '';
 
   const form = document.getElementById('vehicleForm');
   if (form) form.reset();
@@ -571,7 +590,7 @@ function renderImagenesExistentes(lista) {
   cont.className = 'imagenes-existentes foto-preview-grid';
   cont.innerHTML = lista.map((nombre, i) => `
     <div class="foto-preview-item" id="ithumb-${i}">
-      <img src="/static/uploads/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
+      <img src="/img/${esc(nombre)}" alt="Foto ${i+1}" loading="lazy" />
       <button type="button" class="foto-preview-del" onclick="eliminarFotoExistente(${i})" aria-label="Eliminar foto ${i+1}">✕</button>
     </div>`).join('');
 }
@@ -670,16 +689,25 @@ function initSecretTrigger() {
 // CONTADOR HERO
 // ══════════════════════════════════════════════════
 
-function updateStatCount(total) {
-  const el = document.getElementById('statVehiculos');
-  if (!el) return;
+function animateCount(el, target) {
+  if (!el || !target) return;
   let current = 0;
-  const step  = Math.max(1, Math.ceil(total / 20));
+  const step  = Math.max(1, Math.ceil(target / 20));
   const timer = setInterval(() => {
-    current = Math.min(current + step, total);
+    current = Math.min(current + step, target);
     el.textContent = current;
-    if (current >= total) clearInterval(timer);
+    if (current >= target) clearInterval(timer);
   }, 40);
+}
+
+async function updateStatCount() {
+  try {
+    const res  = await fetch('/api/count');
+    if (!res.ok) return;
+    const data = await res.json();
+    animateCount(document.getElementById('statVehiculos'),    data.dealer      || 0);
+    animateCount(document.getElementById('statParticulares'), data.particulares || 0);
+  } catch {}
 }
 
 // ══════════════════════════════════════════════════

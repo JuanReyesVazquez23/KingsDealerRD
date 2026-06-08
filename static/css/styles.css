@@ -2278,20 +2278,16 @@ input[type="file"][data-crop] + .fotos-hint {
   box-shadow:0 4px 20px rgba(245,158,11,.3) !important;
   transform:translateY(-1px);
 }
-
-/* Stats en mobile: 2 columnas para que quepan 4 stats */
+/* Stats: grid 2×2 en mobile para que quepan los 4 */
 @media (max-width: 600px) {
   .hero-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px 0;
   }
-  .stat {
-    padding: 0 12px;
-    border-right: 1px solid var(--dark-border);
-  }
-  .stat:nth-child(2n) { border-right: none; }
-  .stat:nth-child(n+3) { border-top: 1px solid var(--dark-border); padding-top: 20px; }
-  .stat-num   { font-size: 1.8rem; }
-  .stat-label { font-size: .6rem; white-space: normal; }
+  .stat { padding:0 12px; border-right:1px solid var(--dark-border); }
+  .stat:nth-child(2n) { border-right:none; }
+  .stat:nth-child(n+3) { border-top:1px solid var(--dark-border); padding-top:20px; }
+  .stat-num   { font-size:1.8rem; }
+  .stat-label { font-size:.6rem; white-space:normal; }
 }
