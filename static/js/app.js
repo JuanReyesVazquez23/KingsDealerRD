@@ -127,6 +127,7 @@ function renderVehicles(list) {
       : '';
 
     const esCliente = v.origen === 'cliente';
+    // CRÍTICO: pasar el origen para evitar colisión de IDs entre dealer y clientes
     return `
     <article class="vehicle-card${v.oferta ? ' card-en-oferta' : ''}${esCliente ? ' card-cliente' : ''}" style="animation-delay:${i * 50}ms">
       ${v.oferta ? '<div class="card-oferta-ribbon">OFERTA</div>' : ''}
@@ -144,7 +145,7 @@ function renderVehicles(list) {
       <div class="card-footer">
         <div class="card-price">${precioHtml}</div>
         <div class="card-actions">
-          <button class="card-btn card-btn-detail" onclick="openModal(${v.id})">Ver</button>
+          <button class="card-btn card-btn-detail" onclick="openModal(${v.id},'${v.origen}')">Ver</button>
           ${!esCliente ? adminBtns : ''}
         </div>
       </div>
@@ -261,8 +262,10 @@ window.toggleShowMore = toggleShowMore;
 // MODAL DETALLE — galería de hasta 7 fotos
 // ══════════════════════════════════════════════════
 
-function openModal(id) {
-  const v = allVehicles.find(x => x.id === id) || allParticulares.find(x => x.id === id);
+function openModal(id, origen) {
+  // Usar origen para evitar colisión de IDs entre dealer y clientes
+  const lista = (origen === 'cliente') ? allParticulares : allVehicles;
+  const v = lista.find(x => x.id === id);
   if (!v) return;
 
   const moneda     = v.moneda || 'DOP';
@@ -452,12 +455,12 @@ function startAutoplay()  { sliderAutoplay = setInterval(() => goToSlide((slider
 function resetAutoplay()  { clearInterval(sliderAutoplay); startAutoplay(); }
 
 function openModalFromSlider(id) {
-  // Asegura que el vehículo esté en allVehicles antes de abrir el modal
+  // Slider solo tiene vehículos del dealer (ofertas)
   if (!allVehicles.find(x => x.id === id)) {
     const v = sliderOffers.find(x => x.id === id);
     if (v) allVehicles = [...allVehicles, v];
   }
-  openModal(id);
+  openModal(id, 'dealer');
 }
 
 // ══════════════════════════════════════════════════
@@ -486,14 +489,13 @@ function resetForm() {
   keepImages   = [];
   pendingFiles = [];
 
-  // Limpiar preview foto principal
+  // Limpiar preview de foto principal (evita que aparezca en el siguiente vehículo)
   const fImagen = document.getElementById('fImagen');
   if (fImagen) {
     fImagen.value = '';
     const prevCrop = fImagen.parentNode?.querySelector('.crop-previews');
     if (prevCrop) prevCrop.innerHTML = '';
   }
-  // Limpiar fotos adicionales
   const fExtra = document.getElementById('fImagenesExtra');
   if (fExtra) fExtra.value = '';
   const pprev = document.getElementById('fotoPendingPreview'); if (pprev) pprev.innerHTML = '';
