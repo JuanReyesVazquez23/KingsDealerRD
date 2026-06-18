@@ -49,26 +49,121 @@
 </header>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero hero-v2">
   <div class="hero-bg"></div>
-  <div class="hero-content">
-    <p class="hero-eyebrow">Santo Domingo, República Dominicana</p>
-    <h1 class="hero-title">
-      Tu próximo<br/>
-      <span class="hero-accent">vehículo</span><br/>
-      te espera aquí.
-    </h1>
-    <p class="hero-sub">
-      Variedad en importados y nacionales &nbsp;·&nbsp; Financiamiento disponible &nbsp;·&nbsp; Entrega inmediata
-    </p>
-    <div class="hero-ctas">
-      <a href="#catalogo" class="btn-primary">Ver catálogo</a>
-      <a href="/vender"   class="btn-ghost">Vende tu auto</a>
-    </div>
+
+  <!-- Diagonal accent line -->
+  <div class="hero-diagonal-accent" aria-hidden="true"></div>
+
+  <!-- Floating badge -->
+  <div class="hero-trust-badge" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="hero-trust-icon">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    <span>Dealer certificado · RD</span>
   </div>
-  <div class="hero-stats">
+
+  <div class="hero-v2-inner">
+    <!-- Left: main content -->
+    <div class="hero-v2-content">
+
+      <!-- Eyebrow with animated dot -->
+      <p class="hero-eyebrow hero-eyebrow-v2">
+        <span class="hero-dot-live" aria-hidden="true"></span>
+        Santo Domingo, República Dominicana
+      </p>
+
+      <!-- Main headline -->
+      <h1 class="hero-title hero-title-v2">
+        Tu próximo<br/>
+        <em class="hero-accent-italic">vehículo</em><br/>
+        te espera aquí.
+      </h1>
+
+      <!-- Sub copy -->
+      <p class="hero-sub hero-sub-v2">
+        El dealer con más selección de importados y nacionales en Santo Domingo.
+        Financiamiento con los mejores bancos del país.
+      </p>
+
+      <!-- Feature pills -->
+      <div class="hero-pills">
+        <span class="hero-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Financiamiento disponible
+        </span>
+        <span class="hero-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Entrega inmediata
+        </span>
+        <span class="hero-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Traspaso incluido
+        </span>
+      </div>
+
+      <!-- CTAs -->
+      <div class="hero-ctas">
+        <a href="#catalogo" class="btn-primary">Ver catálogo</a>
+        <a href="/vender"   class="btn-ghost">Vende tu auto</a>
+      </div>
+    </div>
+
+    <!-- Right: feature card stack -->
+    <div class="hero-v2-cards" aria-hidden="true">
+
+      <!-- Top card: quick search prompt -->
+      <div class="hero-card hero-card-search">
+        <p class="hero-card-label">Busca tu próximo auto</p>
+        <div class="hero-card-chips">
+          <span>SUV</span>
+          <span>Sedán</span>
+          <span>Pickup</span>
+          <span>Deportivo</span>
+        </div>
+      </div>
+
+      <!-- Middle card: finance teaser -->
+      <div class="hero-card hero-card-finance">
+        <div class="hero-card-finance-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </div>
+        <div>
+          <p class="hero-card-finance-title">Financia hoy</p>
+          <p class="hero-card-finance-sub">Desde 10% anual · Hasta 84 meses</p>
+        </div>
+      </div>
+
+      <!-- Bottom card: stats highlight -->
+      <div class="hero-card hero-card-stat">
+        <div class="hero-card-stat-row">
+          <div class="hero-card-stat-item">
+            <span class="hero-card-stat-num" id="statVehiculos">0</span>
+            <span class="hero-card-stat-lbl">Vehículos</span>
+          </div>
+          <div class="hero-card-stat-divider"></div>
+          <div class="hero-card-stat-item">
+            <span class="hero-card-stat-num">12+</span>
+            <span class="hero-card-stat-lbl">Años</span>
+          </div>
+          <div class="hero-card-stat-divider"></div>
+          <div class="hero-card-stat-item">
+            <span class="hero-card-stat-num">500+</span>
+            <span class="hero-card-stat-lbl">Clientes</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /hero-v2-cards -->
+  </div><!-- /hero-v2-inner -->
+
+  <!-- Bottom stats bar (kept for JS counter compatibility) -->
+  <div class="hero-stats hero-stats-v2">
     <div class="stat">
-      <span class="stat-num" id="statVehiculos">0</span>
+      <span class="stat-num" id="statVehiculos2">0</span>
       <span class="stat-label">Vehículos del dealer</span>
     </div>
     <div class="stat">
@@ -1070,6 +1165,17 @@ async function eliminarAnuncio(id) {
       banner.classList.add('show');
     }, 2500);
   }
+})();
+
+// ── Sync statVehiculos card ↔ bottom bar ───────────
+// The original updateStatCount targets #statVehiculos (card).
+// This observer mirrors the value to #statVehiculos2 (bottom stat bar).
+(function() {
+  const card = document.getElementById('statVehiculos');
+  const bar  = document.getElementById('statVehiculos2');
+  if (!card || !bar) return;
+  const obs = new MutationObserver(() => { bar.textContent = card.textContent; });
+  obs.observe(card, { childList: true, subtree: true, characterData: true });
 })();
 
 </script>
