@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: kingsdealer
+    runtime: python
+    plan: free          # cámbialo a "starter" si no quieres que el servicio duerma por inactividad
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 120
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        sync: false      # generarla y pegarla manualmente en el dashboard de Render
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASS
+        sync: false
+      - key: DATABASE_URL
+        sync: false      # pega aquí la connection string de Neon (usa la versión "pooled")

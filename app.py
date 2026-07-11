@@ -30,15 +30,21 @@ if not _secret:
     raise RuntimeError("Variable de entorno SECRET_KEY no definida.")
 app.secret_key = _secret
 
+# Endurecimiento de la cookie de sesión (Render sirve siempre bajo HTTPS)
+app.config['SESSION_COOKIE_SECURE']   = True   # la cookie solo viaja por HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True   # no accesible desde JS (protección XSS)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # mitiga CSRF básico
+
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 ALLOWED_EXTENSIONS  = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 MAX_CONTENT_LENGTH  = 8 * 1024 * 1024 * 20   # 20 fotos × 8 MB máx
 app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# Railway inyecta automáticamente la variable DATABASE_URL cuando vinculas la base de datos
+# DATABASE_URL la inyecta el proveedor (Render la crea al vincular la BD;
+# con Neon se define manualmente como variable de entorno en el dashboard).
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-# Railway inyecta "postgres://" pero psycopg2 >= 2.9 necesita "postgresql://"
+# Algunos proveedores entregan "postgres://" pero psycopg2 >= 2.9 necesita "postgresql://"
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -196,7 +202,7 @@ def sanitize_phone(value):
     return re.sub(r'[^0-9+\-() ]', '', value).strip()[:20]
 
 def guardar_imagen(file):
-    """Guarda imagen en PostgreSQL como base64. Permanente en Railway."""
+    """Guarda imagen en PostgreSQL como base64 (persistente, no depende del disco del servidor)."""
     if not file or not file.filename: return None
     if not allowed_file(file.filename): return None
     ext    = file.filename.rsplit('.', 1)[1].lower()
@@ -248,6 +254,12 @@ def offline():
 # ══════════════════════════════════════════════════════════════════
 # RUTAS PÚBLICAS
 # ══════════════════════════════════════════════════════════════════
+
+@app.route('/healthz')
+def healthz():
+    """Healthcheck liviano para Render (no consulta la base de datos)."""
+    return jsonify({'status': 'ok'}), 200
+
 
 @app.route('/')
 def index():
